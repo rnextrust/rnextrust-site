@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events &amp; Camps — RNEx Trust (Regd.)</title>
+<meta name="description" content="Upcoming and past health camps, blood donation drives, and community events organised by RNEx Trust (Regd.) in Raj Nagar Extension, Ghaziabad.">
+<meta name="theme-color" content="#1B7340">
+<link rel="icon" href="assets/images/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- ====== HEADER / NAV ====== -->
+<header class="site-header" id="top">
+  <div class="header-inner">
+    <a href="index.html" class="brand">
+      <img src="assets/images/logo.png" alt="RNEx Trust" class="brand-logo">
+    </a>
+    <nav class="main-nav" id="mainNav">
+      <a href="index.html#about">About</a>
+      <a href="index.html#focus">Focus Areas</a>
+      <a href="events.html" style="color:var(--green-deep);">Events</a>
+      <a href="index.html#trustees">Trustees</a>
+      <a href="index.html#involved">Get Involved</a>
+      <a href="donate.html" class="nav-donate">Donate</a>
+      <a href="index.html#contact" class="nav-cta">Contact</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<!-- ====== PAGE HEADER ====== -->
+<section class="page-header">
+  <div class="section-inner">
+    <p class="eyebrow">What's Happening</p>
+    <h1>Events &amp; Camps</h1>
+    <p>Health camps, blood donation drives, and community activities &mdash; updated as they're planned and as they happen. This page is new and will grow as RNEx Trust's calendar fills up.</p>
+  </div>
+</section>
+
+<!-- ====== EVENTS LIST ====== -->
+<section class="section">
+  <div class="section-inner">
+
+    <div class="events-toolbar">
+      <button class="filter-pill active" data-filter="all">All</button>
+      <button class="filter-pill" data-filter="upcoming">Upcoming</button>
+      <button class="filter-pill" data-filter="progress">In Progress</button>
+      <button class="filter-pill" data-filter="completed">Completed</button>
+    </div>
+
+    <div class="events-grid" id="eventsGrid">
+
+      <!-- Real, confirmed activity -->
+      <div class="event-card" data-status="progress">
+        <span class="event-status status-progress">In Progress</span>
+        <h3>Blood Donation Camp</h3>
+        <div class="event-meta">
+          <span>&#128197; Date to be confirmed</span>
+          <span>&#129309; With Ghaziabad Blood Centre</span>
+        </div>
+        <p>RNEx Trust is coordinating a blood donation camp in partnership with Ghaziabad Blood Centre, under our standard MOU framework for healthcare partnerships. We aim to run such camps regularly through the year.</p>
+      </div>
+
+      <!-- Clearly labelled sample/placeholder so layout can be reviewed before real data exists -->
+      <div class="event-card" data-status="sample">
+        <span class="event-status status-sample">Sample &mdash; Not a real event</span>
+        <h3>Free Health Check-up Camp</h3>
+        <div class="event-meta">
+          <span>&#128197; DD Month YYYY</span>
+          <span>&#128205; Venue name, Raj Nagar Extension</span>
+        </div>
+        <p>This card shows the layout for a future event listing. Replace this entire card with real event details once a date and venue are confirmed, or delete it.</p>
+        <p class="sample-note">This is placeholder content for layout reference only.</p>
+      </div>
+
+    </div>
+
+    <div class="events-empty" id="eventsEmpty" style="display:none;">
+      <p style="margin:0;">No events in this category yet. Check back soon, or follow up with us directly.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ====== CTA STRIP ====== -->
+<section class="section section-tint">
+  <div class="section-inner" style="text-align:center;">
+    <p class="eyebrow center">Organise a Camp With Us</p>
+    <h2>Hospitals, blood banks, and NGOs are welcome to partner</h2>
+    <p class="section-lede center">We use a simple, reusable MOU framework that lets us set up a camp or drive quickly and transparently.</p>
+    <a href="index.html#contact" class="btn btn-primary">Propose an Event</a>
+  </div>
+</section>
+
+<!-- ====== FOOTER ====== -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="assets/images/logo.png" alt="RNEx Trust" class="footer-logo">
+      <p>A registered public charitable trust serving Raj Nagar Extension, Ghaziabad, through education, health, and community welfare.</p>
+    </div>
+    <div class="footer-links">
+      <h4>Quick Links</h4>
+      <a href="index.html#about">About</a>
+      <a href="index.html#focus">Focus Areas</a>
+      <a href="events.html">Events</a>
+      <a href="donate.html">Donate</a>
+      <a href="index.html#contact">Contact</a>
+    </div>
+    <div class="footer-legal">
+      <h4>Legal</h4>
+      <a href="#" data-modal="privacyModal">Privacy Policy</a>
+      <a href="#" data-modal="termsModal">Terms &amp; Conditions</a>
+      <a href="#" data-modal="disclaimerModal">Disclaimer</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>&copy; 2026 RNEx Trust (Regd.). All rights reserved. &middot; D-502, Brave Hearts Apartments, Raj Nagar Extension, Ghaziabad, UP 201017</p>
+  </div>
+</footer>
+
+<!-- ====== WHATSAPP FLOAT ====== -->
+<a class="wa-float" href="https://wa.me/919012095151?text=Hi%2C%20I%20found%20RNEx%20Trust%20through%20your%20website.%20I%E2%80%99d%20like%20to%20know%20more%20about%20your%20events." target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
+  <svg viewBox="0 0 32 32" width="28" height="28" fill="white"><path d="M16 0C7.16 0 0 7.16 0 16c0 2.83.74 5.6 2.14 8.03L.06 31.94l8.1-2.13A15.9 15.9 0 0 0 16 32c8.84 0 16-7.16 16-16S24.84 0 16 0zm0 29.27c-2.55 0-5.04-.68-7.2-1.97l-.52-.31-5.36 1.41 1.43-5.22-.34-.54A13.24 13.24 0 0 1 2.73 16C2.73 8.7 8.7 2.73 16 2.73S29.27 8.7 29.27 16 23.3 29.27 16 29.27zm7.27-9.94c-.4-.2-2.36-1.16-2.73-1.3-.37-.13-.63-.2-.9.2-.27.4-1.02 1.3-1.25 1.56-.23.27-.46.3-.85.1-.4-.2-1.66-.61-3.16-1.95-1.17-1.04-1.95-2.33-2.18-2.72-.23-.4-.02-.6.18-.8.2-.2.4-.5.6-.76.2-.27.27-.46.4-.76.13-.3.07-.56-.07-.76-.13-.2-.85-2.06-1.18-2.81-.3-.7-.61-.6-.85-.61-.21-.01-.46-.01-.7-.01-.24 0-.63.09-.96.45-.33.36-1.26 1.23-1.26 3 0 1.76 1.29 3.46 1.47 3.7.18.23 2.49 3.81 6.04 5.19 3.55 1.39 3.55.93 4.19.87.63-.06 2.05-.84 2.34-1.65.29-.81.29-1.5.2-1.65-.09-.15-.33-.24-.73-.43z"/></svg>
+</a>
+
+<!-- ====== MODALS (shared across site) ====== -->
+<div class="modal-overlay" id="privacyModal">
+  <div class="modal-box">
+    <button class="modal-close" data-close>&times;</button>
+    <h2>Privacy Policy</h2>
+    <p class="modal-updated">Last updated: June 2026</p>
+    <h3>1. Introduction</h3>
+    <p>RNEx Trust (Regd.) ("we", "our", "us") respects your privacy. This policy explains how we collect, use, and protect information you share with us through www.rnextrust.com.</p>
+    <h3>2. Information We Collect</h3>
+    <p>Name, contact details, and message content submitted via our contact form; basic usage data such as pages visited.</p>
+    <h3>3. How We Use It</h3>
+    <p>To respond to enquiries, coordinate volunteering or donations, and maintain records required for Trust governance and statutory compliance.</p>
+    <h3>4. Data Protection</h3>
+    <p>We do not sell or trade personal information. Data shared with us is used solely for Trust purposes and is not shared with third parties except as required by law.</p>
+    <h3>5. Contact</h3>
+    <p>For privacy queries: connect@rnextrust.com</p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="termsModal">
+  <div class="modal-box">
+    <button class="modal-close" data-close>&times;</button>
+    <h2>Terms &amp; Conditions</h2>
+    <p class="modal-updated">Last updated: June 2026</p>
+    <h3>1. Acceptance</h3>
+    <p>By using www.rnextrust.com you agree to these Terms. RNEx Trust (Regd.) is a registered public charitable trust, Reg. No. 202600739017949, governed by the Indian Trusts Act, 1882.</p>
+    <h3>2. Use of Content</h3>
+    <p>Content on this site is provided for general information about the Trust's objects and activities and may be updated without notice.</p>
+    <h3>3. Donations</h3>
+    <p>All donations are applied solely toward the Trust's charitable objects as set out in the Trust Deed. Receipts are issued on request.</p>
+    <h3>4. Intellectual Property</h3>
+    <p>The RNEx Trust name, logo, and original content on this site belong to RNEx Trust (Regd.) and may not be reproduced without permission.</p>
+    <h3>5. Governing Law</h3>
+    <p>These Terms are governed by the laws of India, with disputes subject to the courts at Ghaziabad, Uttar Pradesh.</p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="disclaimerModal">
+  <div class="modal-box">
+    <button class="modal-close" data-close>&times;</button>
+    <h2>Disclaimer</h2>
+    <p class="modal-updated">Last updated: June 2026</p>
+    <h3>General Information</h3>
+    <p>Information on this website is provided in good faith for general informational purposes only. RNEx Trust (Regd.) makes no warranty as to its completeness or accuracy.</p>
+    <h3>Activities &amp; Outcomes</h3>
+    <p>Descriptions of camps, drives, and programmes reflect our intentions and typical practice; actual scheduling and outcomes may vary based on partner and resource availability.</p>
+    <h3>Third-Party Links</h3>
+    <p>This site may link to third-party websites. We are not responsible for the content or practices of those sites.</p>
+    <h3>Contact</h3>
+    <p>Questions about this Disclaimer: connect@rnextrust.com</p>
+  </div>
+</div>
+
+<script src="assets/script.js"></script>
+<script src="assets/events.js"></script>
+</body>
+</html>
