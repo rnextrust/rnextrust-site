@@ -950,6 +950,22 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 
     <div class="events-grid" id="eventsGrid">
 
+      <!-- Real, confirmed event -->
+      <div class="event-card" data-status="upcoming">
+        <span class="event-status status-upcoming">Upcoming</span>
+        <h3>International Yoga Day 2026 — Group Yoga Session</h3>
+        <div class="event-meta">
+          <span>&#128197; Sunday, 21 June 2026, 6:00 AM onwards</span>
+          <span>&#128205; Lawn Area, Yashoda Hospital, Sanjay Nagar, Ghaziabad</span>
+        </div>
+        <p>Join RNEx Trust for a refreshing group yoga session marking International Yoga Day, in partnership with Yashoda Hospital, Sanjay Nagar. Free yoga mats and refreshments provided. Dress code: white T-shirt. Registration required &mdash; please fill the Google Form to confirm your spot.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px;">
+          <a href="https://forms.gle/HUMAMsTsMjJpgsg8A" target="_blank" rel="noopener" class="btn btn-primary" style="padding:9px 18px; font-size:0.88rem;">Register Now &rarr;</a>
+          <a href="tel:+918881349019" class="btn btn-ghost" style="padding:9px 18px; font-size:0.88rem;">&#128222; 88813 49019</a>
+          <a href="tel:+916393812126" class="btn btn-ghost" style="padding:9px 18px; font-size:0.88rem;">&#128222; 63938 12126</a>
+        </div>
+      </div>
+
       <!-- Real, confirmed activity -->
       <div class="event-card" data-status="progress">
         <span class="event-status status-progress">In Progress</span>
@@ -959,18 +975,6 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
           <span>&#129309; With Ghaziabad Blood Centre</span>
         </div>
         <p>RNEx Trust is coordinating a blood donation camp in partnership with Ghaziabad Blood Centre, under our standard MOU framework for healthcare partnerships. We aim to run such camps regularly through the year.</p>
-      </div>
-
-      <!-- Clearly labelled sample/placeholder so layout can be reviewed before real data exists -->
-      <div class="event-card" data-status="sample">
-        <span class="event-status status-sample">Sample &mdash; Not a real event</span>
-        <h3>Free Health Check-up Camp</h3>
-        <div class="event-meta">
-          <span>&#128197; DD Month YYYY</span>
-          <span>&#128205; Venue name, Raj Nagar Extension</span>
-        </div>
-        <p>This card shows the layout for a future event listing. Replace this entire card with real event details once a date and venue are confirmed, or delete it.</p>
-        <p class="sample-note">This is placeholder content for layout reference only.</p>
       </div>
 
     </div>
@@ -1291,11 +1295,8 @@ filterPills.forEach(pill => {
     let visibleCount = 0;
 
     eventCards.forEach(card => {
-      const status = card.dataset.status; // progress | upcoming | completed | sample
-      const matches =
-        filter === 'all' ||
-        (filter === status) ||
-        (filter === 'upcoming' && status === 'sample'); // sample card shown under "upcoming" too, since it represents that kind of entry
+      const status = card.dataset.status; // progress | upcoming | completed
+      const matches = filter === 'all' || filter === status;
 
       card.style.display = matches ? '' : 'none';
       if (matches) visibleCount++;
