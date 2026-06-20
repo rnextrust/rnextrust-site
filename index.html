@@ -515,6 +515,22 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   text-align: center;
   margin: 0;
 }
+.form-success-message {
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 48px 32px;
+  text-align: center;
+}
+.form-success-message h3 {
+  font-size: 1.3rem;
+  margin: 10px 0 8px;
+  color: var(--ink);
+}
+.form-success-message p {
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  margin: 0;
+}
 
 @media (max-width: 880px) {
   .contact-grid { grid-template-columns: 1fr; gap: 40px; }
@@ -1446,7 +1462,9 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
         <span>Reg. No. 202600739017949 &middot; PAN AAFTR9591J &middot; DARPAN UP/2026/1072481 &middot; Udyam UDYAM-UP-29-0230562 &middot; FSSAI 30260517124501466</span>
       </div>
     </div>
-    <form class="contact-form" id="contactForm">
+    <form class="contact-form" id="contactForm" action="https://formspree.io/f/mpqgaaej" method="POST">
+      <input type="hidden" name="_subject" value="New enquiry from RNEx Trust website">
+      <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
       <label>Your Name *<input type="text" name="name" required></label>
       <label>Phone / WhatsApp<input type="tel" name="phone"></label>
       <label>Email Address *<input type="email" name="email" required></label>
@@ -1460,8 +1478,13 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
       </label>
       <label>Message<textarea name="message" rows="4"></textarea></label>
       <button type="submit" class="btn btn-primary btn-block">Send Message &rarr;</button>
-      <p class="form-note">This is a demo form. Connect it to your preferred form backend before launch.</p>
+      <p class="form-note">We typically respond within 2-3 business days.</p>
     </form>
+    <div class="form-success-message" id="formSuccessMessage" style="display:none;">
+      <span style="font-size:2rem;">&#9989;</span>
+      <h3>Message Sent!</h3>
+      <p>Thank you for reaching out. We'll get back to you within 2-3 business days.</p>
+    </div>
   </div>
 </section>
 
@@ -1613,12 +1636,38 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ===== Demo contact form =====
+// ===== Contact form (Formspree) =====
 const contactForm = document.getElementById('contactForm');
+const formSuccessMessage = document.getElementById('formSuccessMessage');
+
 if (contactForm) {
-  contactForm.addEventListener('submit', (e) => {
+  contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert('This is a demo form — no message was actually sent.\n\nConnect this form to your preferred backend (e.g. Google Forms, Formspree, or a simple script) before going live.');
+
+    const submitBtn = contactForm.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    try {
+      const formData = new FormData(contactForm);
+      const response = await fetch(contactForm.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (response.ok) {
+        contactForm.style.display = 'none';
+        if (formSuccessMessage) formSuccessMessage.style.display = 'block';
+      } else {
+        throw new Error('Submission failed');
+      }
+    } catch (err) {
+      alert('Sorry, something went wrong sending your message. Please try again, or email us directly at connect@rnextrust.com.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+    }
   });
 }
 
