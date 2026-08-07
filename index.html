@@ -3623,23 +3623,22 @@ document.getElementById('membershipForm')?.addEventListener('submit', async func
   const payBtn = document.getElementById('membershipPayBtn');
   if (payBtn) { payBtn.disabled = true; payBtn.textContent = 'Opening Payment...'; }
 
+  // Razorpay notes max 15 fields — keep only essential ones
+  // Full data stored in Apps Script via subscription metadata
   const memberNotes = {
     payment_type: type === 'Sathi' ? 'membership_subscription' : 'membership_onetime',
     member_name: name,
     mobile: mobile,
     email: email,
-    address: address,
-    pin_code: pin,
-    district: district,
-    state: state,
     membership_type: type,
     duration: duration,
     category: category,
     membership_amount: membershipAmt.toString(),
-    family_count: familyCount.toString(),
     tshirt_count: tshirtCount.toString(),
     tshirt_amount: tshirtAmt.toString(),
-    family_members: JSON.stringify(familyData)
+    address: (address + ', ' + pin + ', ' + district + ', ' + state).substring(0, 200),
+    family_count: familyCount.toString(),
+    family_members: JSON.stringify(familyData).substring(0, 500)
   };
 
   if (type === 'Sathi') {
