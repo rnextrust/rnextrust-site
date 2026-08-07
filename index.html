@@ -139,7 +139,7 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 200;
   background: rgba(251,250,247,0.92);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border-soft);
@@ -1401,10 +1401,16 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   background-size: 200% 200%;
   animation: saffron-pulse 4s ease-in-out infinite;
   color: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 120;
+  position: relative;
+  z-index: 110;
   box-shadow: 0 2px 12px rgba(255,107,26,0.4);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.cta-strip.hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
 }
 @keyframes saffron-pulse {
   0%, 100% { background-position: 0% 50%; }
@@ -3297,6 +3303,36 @@ function populateConfirmBox() {
   `;
 }
 
+
+// ===== Saffron CTA strip hide on scroll =====
+(function() {
+  const ctaStrip = document.getElementById('ctaStrip');
+  if (!ctaStrip) return;
+
+  let lastScrollY = 0;
+  let ticking = false;
+
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() {
+        const currentScrollY = window.scrollY;
+
+        if (currentScrollY > 80) {
+          // Scrolled down — hide saffron strip
+          ctaStrip.classList.add('hidden');
+        } else {
+          // Near top — show saffron strip
+          ctaStrip.classList.remove('hidden');
+        }
+
+        lastScrollY = currentScrollY;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+})();
+
 // ===== Event banner & event-card auto-status (date-driven) =====
 // Uses the visitor's local date. Dates are compared as YYYY-MM-DD strings (safe, no timezone math needed).
 
@@ -4093,67 +4129,85 @@ function googleTranslateElementInit() {
   }, 'google_translate_element');
 }
 
+// Clear ALL Google Translate cookies on all domains
+function clearGoogCookies() {
+  const domains = [location.hostname, '.' + location.hostname, 'www.rnextrust.com', '.rnextrust.com', ''];
+  const paths = ['/', ''];
+  const expiry = 'expires=Thu, 01 Jan 1970 00:00:00 UTC';
+  domains.forEach(d => {
+    paths.forEach(p => {
+      document.cookie = 'googtrans=; ' + expiry + '; path=' + (p||'/') + (d ? '; domain=' + d : '');
+    });
+  });
+}
+
 function setLanguage(lang) {
   const enBtn = document.getElementById('langEN');
   const hiBtn = document.getElementById('langHI');
 
   if (lang === 'hi') {
-    // Activate Hindi
     enBtn.classList.remove('active');
     hiBtn.classList.add('active');
-
-    // Use Google Translate cookie method
-    const iframe = document.querySelector('.goog-te-menu-frame');
-    const select = document.querySelector('.goog-te-combo');
-    if (select) {
-      select.value = 'hi';
-      select.dispatchEvent(new Event('change'));
-    } else {
-      // Fallback: set cookie and reload
-      document.cookie = 'googtrans=/en/hi; path=/; domain=' + window.location.hostname;
-      document.cookie = 'googtrans=/en/hi; path=/';
-      window.location.reload();
-    }
+    // Set cookie for both domain variants
+    document.cookie = 'googtrans=/en/hi; path=/; domain=' + location.hostname;
+    document.cookie = 'googtrans=/en/hi; path=/; domain=.' + location.hostname;
+    document.cookie = 'googtrans=/en/hi; path=/';
+    // Store preference in sessionStorage
+    sessionStorage.setItem('rnex_lang', 'hi');
+    window.location.reload();
   } else {
-    // Back to English
     enBtn.classList.add('active');
     hiBtn.classList.remove('active');
-
-    // Clear translate cookie
-    document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname;
-    document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    window.location.reload();
+    clearGoogCookies();
+    // Store preference in sessionStorage
+    sessionStorage.setItem('rnex_lang', 'en');
+    window.location.href = window.location.pathname + '?lang=en&t=' + Date.now() + window.location.hash;
   }
 }
 
-// Check if already in Hindi mode on page load
-window.addEventListener('DOMContentLoaded', function() {
-  const cookies = document.cookie;
-  if (cookies.includes('googtrans=/en/hi')) {
+// On page load — restore button state and handle EN force
+(function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const forcedEn = urlParams.get('lang') === 'en';
+
+  if (forcedEn) {
+    // Force clear all cookies
+    clearGoogCookies();
+    sessionStorage.setItem('rnex_lang', 'en');
+    // Remove the query param cleanly
+    const cleanUrl = window.location.pathname + window.location.hash;
+    history.replaceState(null, '', cleanUrl);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const storedLang = sessionStorage.getItem('rnex_lang');
+    const hasCookie = document.cookie.includes('googtrans=/en/hi');
+    const isHindi = !forcedEn && (hasCookie || storedLang === 'hi');
+
     const enBtn = document.getElementById('langEN');
     const hiBtn = document.getElementById('langHI');
-    if (enBtn) enBtn.classList.remove('active');
-    if (hiBtn) hiBtn.classList.add('active');
-  }
-});
+    const notice = document.getElementById('translateNotice');
+
+    if (isHindi) {
+      if (enBtn) enBtn.classList.remove('active');
+      if (hiBtn) hiBtn.classList.add('active');
+      if (notice) notice.style.display = 'block';
+    } else {
+      if (enBtn) enBtn.classList.add('active');
+      if (hiBtn) hiBtn.classList.remove('active');
+      if (notice) notice.style.display = 'none';
+    }
+  });
+})();
 </script>
 <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
-<!-- Auto-translate declaration banner (shows when Hindi is active) -->
+<!-- Auto-translate declaration banner -->
 <div id="translateNotice" style="display:none; position:fixed; bottom:70px; left:50%; transform:translateX(-50%);
   background:#1B7340; color:#fff; padding:8px 18px; border-radius:100px; font-size:0.75rem;
   z-index:500; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
   🤖 स्वचालित अनुवाद — त्रुटियाँ संभव हैं
 </div>
-<script>
-// Show translation notice when in Hindi
-if (document.cookie.includes('googtrans=/en/hi')) {
-  document.addEventListener('DOMContentLoaded', function() {
-    const notice = document.getElementById('translateNotice');
-    if (notice) notice.style.display = 'block';
-  });
-}
-</script>
 
 </body>
 </html>
