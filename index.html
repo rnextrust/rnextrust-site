@@ -2143,6 +2143,48 @@ footer { padding: 40px 0 24px; }
   .about-cards { gap: 10px; }
 }
 
+
+/* ============================================================
+   Language Toggle - EN / हिं
+   ============================================================ */
+.lang-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid var(--border-soft);
+  border-radius: 100px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.lang-btn {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.lang-btn.active {
+  background: var(--green-deep);
+  color: #fff;
+}
+/* Hide Google Translate banner/bar */
+.goog-te-banner-frame { display: none !important; }
+body { top: 0 !important; }
+.goog-te-gadget { display: none !important; }
+.skiptranslate { display: none !important; }
+iframe.goog-te-menu-frame { display: none !important; }
+
+
+@media (max-width: 768px) {
+  .lang-toggle-wrap { order: -1; }
+  .lang-btn { padding: 4px 10px; font-size: 0.72rem; }
+}
+
 </style>
 </head>
 <body>
@@ -2198,6 +2240,10 @@ footer { padding: 40px 0 24px; }
       <a href="#donate" class="nav-donate">Donate</a>
       <a href="#contact" class="nav-cta">Contact</a>
     </nav>
+    <div class="lang-toggle-wrap">
+      <button class="lang-btn active" id="langEN" onclick="setLanguage('en')">EN</button>
+      <button class="lang-btn" id="langHI" onclick="setLanguage('hi')">हिं</button>
+    </div>
     <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
@@ -4034,6 +4080,80 @@ function closeModal(id) {
     <p>For shipping queries: connect@rnextrust.com | +91 90120 95151 (WhatsApp)</p>
   </div>
 </div>
+
+
+<!-- Google Translate -->
+<div id="google_translate_element" style="display:none;"></div>
+<script type="text/javascript">
+function googleTranslateElementInit() {
+  new google.translate.TranslateElement({
+    pageLanguage: 'en',
+    includedLanguages: 'hi',
+    autoDisplay: false
+  }, 'google_translate_element');
+}
+
+function setLanguage(lang) {
+  const enBtn = document.getElementById('langEN');
+  const hiBtn = document.getElementById('langHI');
+
+  if (lang === 'hi') {
+    // Activate Hindi
+    enBtn.classList.remove('active');
+    hiBtn.classList.add('active');
+
+    // Use Google Translate cookie method
+    const iframe = document.querySelector('.goog-te-menu-frame');
+    const select = document.querySelector('.goog-te-combo');
+    if (select) {
+      select.value = 'hi';
+      select.dispatchEvent(new Event('change'));
+    } else {
+      // Fallback: set cookie and reload
+      document.cookie = 'googtrans=/en/hi; path=/; domain=' + window.location.hostname;
+      document.cookie = 'googtrans=/en/hi; path=/';
+      window.location.reload();
+    }
+  } else {
+    // Back to English
+    enBtn.classList.add('active');
+    hiBtn.classList.remove('active');
+
+    // Clear translate cookie
+    document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname;
+    document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+    window.location.reload();
+  }
+}
+
+// Check if already in Hindi mode on page load
+window.addEventListener('DOMContentLoaded', function() {
+  const cookies = document.cookie;
+  if (cookies.includes('googtrans=/en/hi')) {
+    const enBtn = document.getElementById('langEN');
+    const hiBtn = document.getElementById('langHI');
+    if (enBtn) enBtn.classList.remove('active');
+    if (hiBtn) hiBtn.classList.add('active');
+  }
+});
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<!-- Auto-translate declaration banner (shows when Hindi is active) -->
+<div id="translateNotice" style="display:none; position:fixed; bottom:70px; left:50%; transform:translateX(-50%);
+  background:#1B7340; color:#fff; padding:8px 18px; border-radius:100px; font-size:0.75rem;
+  z-index:500; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+  🤖 स्वचालित अनुवाद — त्रुटियाँ संभव हैं
+</div>
+<script>
+// Show translation notice when in Hindi
+if (document.cookie.includes('googtrans=/en/hi')) {
+  document.addEventListener('DOMContentLoaded', function() {
+    const notice = document.getElementById('translateNotice');
+    if (notice) notice.style.display = 'block';
+  });
+}
+</script>
 
 </body>
 </html>
