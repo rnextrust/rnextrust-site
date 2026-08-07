@@ -3202,6 +3202,41 @@ function todayStr() {
 const RAZORPAY_KEY = 'rzp_live_TMazAJRSGFgf5T';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxV3CAjE60PWozAQaju0MXCeMyLRH0SgOWNUV7piZvV3aE_cebPjptZFf-Ap7e1Bqq4dg/exec';
 
+// JSONP helper — bypasses CORS for Apps Script calls
+function callAppsScriptJSONP(payload) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'rzpCb_' + Date.now();
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      reject(new Error('Request timed out. Please check your internet connection and try again.'));
+    }, 15000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      const script = document.getElementById('jsonp_script');
+      if (script) script.remove();
+      resolve(data);
+    };
+
+    const params = new URLSearchParams({
+      action: 'create_subscription',
+      callback: cbName,
+      payload: JSON.stringify(payload)
+    });
+
+    const script = document.createElement('script');
+    script.id = 'jsonp_script';
+    script.src = APPS_SCRIPT_URL + '?' + params.toString();
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      reject(new Error('Could not reach server. Please try again.'));
+    };
+    document.body.appendChild(script);
+  });
+}
+
 // Razorpay Subscription Plan IDs (Sathi only — Mitra is one-time)
 const SATHI_PLANS = {
   individual: {
@@ -3614,18 +3649,12 @@ document.getElementById('membershipForm')?.addEventListener('submit', async func
       const planId = SATHI_PLANS[category]?.[duration];
       if (!planId) throw new Error('Plan not found for ' + category + ' ' + duration);
 
-      // Call Apps Script to create subscription
-      const resp = await fetch(APPS_SCRIPT_URL + '?action=create_subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plan_id: planId,
-          member_notes: memberNotes,
-          tshirt_amount: tshirtAmt
-        })
+      // Call Apps Script via JSONP to bypass CORS
+      const data = await callAppsScriptJSONP({
+        plan_id: planId,
+        member_notes: memberNotes,
+        tshirt_amount: tshirtAmt
       });
-
-      const data = await resp.json();
       if (!data.subscription_id) throw new Error(data.error || 'Failed to create subscription');
 
       // Open Razorpay with subscription_id
