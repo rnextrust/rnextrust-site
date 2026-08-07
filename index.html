@@ -1100,19 +1100,19 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 .membership-tiers {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 28px;
-  margin-bottom: 28px;
+  gap: 18px;
+  margin-bottom: 20px;
 }
 
 .tier-card {
   border: 2px solid var(--border-soft);
   border-radius: var(--radius-md);
-  padding: 32px 28px;
+  padding: 18px 16px;
   background: var(--paper-card);
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .tier-mitra {
@@ -1140,10 +1140,10 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   display: inline-block;
   background: var(--green-tint);
   color: var(--green-deep);
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 700;
   font-family: var(--font-display);
-  padding: 8px 20px;
+  padding: 6px 16px;
   border-radius: var(--radius-sm);
   width: fit-content;
 }
@@ -1166,8 +1166,11 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border-soft);
 }
+.tier-price-row:last-child { border-bottom: none; }
 
 .tier-price-label {
   font-size: 0.85rem;
@@ -1176,15 +1179,15 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   flex-shrink: 0;
 }
 
-.tier-price-opts { display: flex; gap: 8px; flex-wrap: wrap; }
+.tier-price-opts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 
 .price-chip {
-  background: #F0F0F0;
-  color: var(--ink);
-  font-size: 0.82rem;
+  background: var(--green-tint);
+  color: var(--green-deep);
+  font-size: 0.74rem;
   font-weight: 700;
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+  border-radius: 100px;
 }
 
 .price-chip-mitra {
@@ -1209,10 +1212,11 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 }
 
 .tier-benefits li {
-  font-size: 0.88rem;
-  padding-left: 20px;
+  font-size: 0.8rem;
+  padding-left: 18px;
   position: relative;
   color: var(--ink-soft);
+  line-height: 1.4;
 }
 
 .tier-benefits li::before {
@@ -1233,8 +1237,9 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 }
 
 @media (max-width: 700px) {
-  .membership-tiers { grid-template-columns: 1fr; }
-  .tier-mitra { margin-top: 16px; }
+  .membership-tiers { grid-template-columns: 1fr; gap: 14px; }
+  .tier-mitra { margin-top: 12px; }
+  .tier-card { padding: 14px 12px; }
 }
 
 /* ============================================================
@@ -2456,7 +2461,7 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
         <div class="mf-field"><label class="mf-label" for="mf_name">Full Name *</label><input type="text" id="mf_name" required placeholder="As per Aadhaar" class="mf-input"></div>
         <div class="mf-field"><label class="mf-label" for="mf_mobile">Mobile / WhatsApp *</label><input type="tel" id="mf_mobile" required placeholder="10-digit mobile number" class="mf-input"></div>
         <div class="mf-field"><label class="mf-label" for="mf_email">Email Address *</label><input type="email" id="mf_email" required placeholder="your@email.com" class="mf-input"></div>
-        <div class="mf-field">
+        <div class="mf-field" id="mf_photo_field">
           <label class="mf-label">Photo</label>
           <div class="mf-file-upload">
             <label for="mf_photo" class="mf-file-label">&#128247; Choose Photo</label>
@@ -3190,21 +3195,29 @@ function todayStr() {
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 // ============================================================
-// RNEx Trust - Membership & Donation JavaScript
+// ============================================================
+// RNEx Trust - Membership & Donation JavaScript v3
 // ============================================================
 
 const RAZORPAY_KEY = 'rzp_live_TMazAJRSGFgf5T';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxV3CAjE60PWozAQaju0MXCeMyLRH0SgOWNUV7piZvV3aE_cebPjptZFf-Ap7e1Bqq4dg/exec';
 
-// Membership pricing
-const PRICING = {
-  Sathi: {
-    individual: { Monthly: 100, Yearly: 1100 },
-    family: { Monthly: 200, Yearly: 2100 }
+// Razorpay Subscription Plan IDs (Sathi only — Mitra is one-time)
+const SATHI_PLANS = {
+  individual: {
+    Monthly: 'plan_TMtVv0w3fUR1oy',   // ₹100/month
+    Yearly:  'plan_TMtWaIuziSsOHQ'    // ₹1,100/year
   },
-  Mitra: {
-    individual: { Lifetime: 11000 },
-    family: { Lifetime: 21000 }
+  family: {
+    Monthly: 'plan_TMtX4F5mSsLR1H',   // ₹200/month
+    Yearly:  'plan_TMtXwtStgobDqo'    // ₹2,100/year
   }
+};
+
+// Mitra one-time pricing
+const MITRA_PRICING = {
+  individual: { Lifetime: 11000 },
+  family:     { Lifetime: 21000 }
 };
 
 const TSHIRT_COST = 800;
@@ -3218,40 +3231,192 @@ function openMembershipForm(type) {
   const modal = document.getElementById('membershipModal');
   const title = document.getElementById('membershipModalTitle');
   const durationWrap = document.getElementById('mf_duration_wrap');
-  const durationSelect = document.getElementById('mf_duration');
+  const durationToggles = document.getElementById('mf_duration_toggles');
 
   document.getElementById('mf_type').value = type;
   title.textContent = `${type} Membership Registration`;
 
+  // Show/hide photo field based on type
+  const photoField = document.getElementById('mf_photo_field');
+  if (photoField) photoField.style.display = type === 'Mitra' ? 'block' : 'none';
+
   if (type === 'Mitra') {
-    durationWrap.style.display = 'none';
-    durationSelect.innerHTML = '<option value="Lifetime">Lifetime</option>';
+    if (durationWrap) durationWrap.style.display = 'none';
+    if (durationToggles) durationToggles.innerHTML = '';
+    document.getElementById('mf_duration').value = 'Lifetime';
   } else {
-    durationWrap.style.display = '';
-    durationSelect.innerHTML = '<option value="Monthly">Monthly</option><option value="Yearly">Yearly</option>';
+    if (durationWrap) durationWrap.style.display = '';
+    if (durationToggles) {
+      durationToggles.innerHTML = `
+        <button type="button" class="mf-toggle active" id="dur_Monthly" onclick="setDuration('Monthly')">&#128197; Monthly</button>
+        <button type="button" class="mf-toggle" id="dur_Yearly" onclick="setDuration('Yearly')">&#128198; Yearly</button>
+      `;
+    }
+    document.getElementById('mf_duration').value = 'Monthly';
   }
 
+  // Reset form
   familyMemberCount = 0;
   document.getElementById('mf_family_list').innerHTML = '';
+  setCategory('individual');
+  goToStep(1);
   modal.classList.add('open');
   updateSummary();
 }
 
 // ============================================================
-// FAMILY MEMBER MANAGEMENT
+// MULTI-STEP FORM NAVIGATION
 // ============================================================
 
-document.getElementById('mf_category')?.addEventListener('change', function () {
+function goToStep(step) {
+  const current = getCurrentStep();
+  if (step > current && !validateStep(current)) return;
+
+  [1,2,3,4].forEach(s => {
+    const el = document.getElementById('mf_step' + s);
+    if (el) el.style.display = 'none';
+    const ind = document.getElementById('step' + s + '_indicator');
+    if (ind) {
+      ind.classList.remove('mf-step-active', 'mf-step-done');
+      if (s < step) ind.classList.add('mf-step-done');
+    }
+  });
+
+  const target = document.getElementById('mf_step' + step);
+  if (target) target.style.display = 'block';
+  const ind = document.getElementById('step' + step + '_indicator');
+  if (ind) ind.classList.add('mf-step-active');
+
+  if (step === 4) populateConfirmBox();
+
+  const modalBox = document.querySelector('.modal-membership');
+  if (modalBox) modalBox.scrollTop = 0;
+}
+
+function getCurrentStep() {
+  for (let s = 1; s <= 4; s++) {
+    const el = document.getElementById('mf_step' + s);
+    if (el && el.style.display !== 'none') return s;
+  }
+  return 1;
+}
+
+function validateStep(step) {
+  if (step === 1) {
+    const name = document.getElementById('mf_name').value.trim();
+    const mobile = document.getElementById('mf_mobile').value.trim();
+    const email = document.getElementById('mf_email').value.trim();
+    if (!name) { alert('Please enter your full name.'); return false; }
+    const cleanMobile = mobile.replace(/^0+/, '');
+    if (!/^\d{10}$/.test(cleanMobile)) { alert('Please enter a valid 10-digit mobile number.'); return false; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address.'); return false; }
+  }
+  if (step === 2) {
+    const addr = document.getElementById('mf_address').value.trim();
+    const pin = document.getElementById('mf_pin').value.trim();
+    const dist = document.getElementById('mf_district').value.trim();
+    const state = document.getElementById('mf_state').value.trim();
+    if (!addr || !pin || !dist || !state) { alert('Please fill in all address fields.'); return false; }
+    if (!/^\d{6}$/.test(pin)) { alert('Please enter a valid 6-digit pin code.'); return false; }
+  }
+  return true;
+}
+
+// ============================================================
+// CATEGORY & DURATION SELECTORS
+// ============================================================
+
+function setCategory(cat) {
+  document.getElementById('mf_category').value = cat;
+  document.querySelectorAll('[id^="cat_"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('cat_' + cat);
+  if (btn) btn.classList.add('active');
   const familySection = document.getElementById('mf_family_section');
-  familySection.style.display = this.value === 'family' ? 'block' : 'none';
+  if (familySection) familySection.style.display = cat === 'family' ? 'block' : 'none';
   updateSummary();
-});
+}
+
+function setDuration(dur) {
+  document.getElementById('mf_duration').value = dur;
+  document.querySelectorAll('[id^="dur_"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('dur_' + dur);
+  if (btn) btn.classList.add('active');
+  updateSummary();
+}
+
+// ============================================================
+// PAYMENT SUMMARY
+// ============================================================
+
+function updateSummary() {
+  const type = document.getElementById('mf_type')?.value || 'Sathi';
+  const category = document.getElementById('mf_category')?.value || 'individual';
+  const duration = document.getElementById('mf_duration')?.value || (type === 'Mitra' ? 'Lifetime' : 'Monthly');
+
+  let membershipAmt = 0;
+  if (type === 'Sathi' && SATHI_PLANS[category]?.[duration]) {
+    const pricing = { individual: { Monthly: 100, Yearly: 1100 }, family: { Monthly: 200, Yearly: 2100 } };
+    membershipAmt = pricing[category]?.[duration] || 0;
+  } else if (type === 'Mitra') {
+    membershipAmt = MITRA_PRICING[category]?.[duration] || 0;
+  }
+
+  let tshirtCount = 0;
+  if (document.getElementById('mf_primary_tshirt')?.checked) tshirtCount++;
+  document.querySelectorAll('[id^="fm_tshirt_"]').forEach(cb => {
+    if (!cb.id.includes('wrap') && !cb.id.includes('size') && cb.checked) tshirtCount++;
+  });
+
+  const tshirtAmt = tshirtCount * TSHIRT_COST;
+
+  // For Sathi subscriptions, T-shirt is a separate one-time charge added as addon
+  // For display, show membership + tshirt separately
+  const total = type === 'Sathi' ? tshirtAmt : membershipAmt + tshirtAmt;
+
+  const membershipAmtEl = document.getElementById('summary_membership_amt');
+  if (membershipAmtEl) {
+    if (type === 'Sathi') {
+      membershipAmtEl.textContent = '₹' + membershipAmt.toLocaleString('en-IN') + ' / ' + duration.toLowerCase();
+    } else {
+      membershipAmtEl.textContent = '₹' + membershipAmt.toLocaleString('en-IN');
+    }
+  }
+
+  const tshirtRow = document.getElementById('summary_tshirt_row');
+  if (tshirtRow) {
+    if (tshirtCount > 0) {
+      tshirtRow.style.display = '';
+      const label = document.getElementById('summary_tshirt_label');
+      const amt = document.getElementById('summary_tshirt_amt');
+      if (label) label.textContent = `T-Shirt ×${tshirtCount} (one-time)`;
+      if (amt) amt.textContent = '₹' + tshirtAmt.toLocaleString('en-IN');
+    } else {
+      tshirtRow.style.display = 'none';
+    }
+  }
+
+  const totalEl = document.getElementById('summary_total');
+  if (totalEl) {
+    if (type === 'Sathi') {
+      totalEl.textContent = tshirtCount > 0
+        ? '₹' + membershipAmt.toLocaleString('en-IN') + '/month + ₹' + tshirtAmt.toLocaleString('en-IN') + ' now'
+        : '₹' + membershipAmt.toLocaleString('en-IN') + ' / ' + duration.toLowerCase() + ' (recurring)';
+    } else {
+      totalEl.textContent = '₹' + total.toLocaleString('en-IN');
+    }
+  }
+
+  return { membershipAmt, tshirtCount, tshirtAmt, total: membershipAmt + tshirtAmt };
+}
+
+// ============================================================
+// FAMILY MEMBERS
+// ============================================================
 
 function addFamilyMember() {
   familyMemberCount++;
   const idx = familyMemberCount;
   const container = document.getElementById('mf_family_list');
-
   const div = document.createElement('div');
   div.className = 'family-member-card';
   div.id = `fm_${idx}`;
@@ -3260,47 +3425,32 @@ function addFamilyMember() {
       <span>Family Member ${idx}</span>
       <button type="button" class="fm-remove" onclick="removeFamilyMember(${idx})">&times;</button>
     </div>
-    <div class="form-row-2">
-      <label>Full Name *<input type="text" id="fm_name_${idx}" placeholder="Name" required></label>
-      <label>Relation *
-        <select id="fm_relation_${idx}">
-          <option value="Spouse">Spouse</option>
-          <option value="Son">Son</option>
-          <option value="Daughter">Daughter</option>
-          <option value="Mother">Mother</option>
-          <option value="Father">Father</option>
-          <option value="Other">Other</option>
-        </select>
-      </label>
+    <div class="mf-field-row">
+      <div class="mf-field"><label class="mf-label">Full Name *</label><input type="text" id="fm_name_${idx}" placeholder="Name" class="mf-input" required></div>
+      <div class="mf-field"><label class="mf-label">Relation *<select id="fm_relation_${idx}" class="mf-input"><option>Spouse</option><option>Son</option><option>Daughter</option><option>Mother</option><option>Father</option><option>Other</option></select></label></div>
     </div>
-    <div class="form-row-3">
-      <label>Age *<input type="number" id="fm_age_${idx}" min="0" max="120" placeholder="Age" required></label>
-      <label>Gender *
-        <select id="fm_gender_${idx}">
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-          <option value="Other">Other</option>
-        </select>
-      </label>
-      <label>
-        <input type="checkbox" id="fm_tshirt_${idx}" onchange="toggleFmTshirt(${idx}); updateSummary();">
-        &nbsp;T-Shirt (₹800)
-      </label>
+    <div class="mf-field-row">
+      <div class="mf-field"><label class="mf-label">Age *</label><input type="number" id="fm_age_${idx}" min="0" max="120" placeholder="Age" class="mf-input" required></div>
+      <div class="mf-field"><label class="mf-label">Gender *<select id="fm_gender_${idx}" class="mf-input"><option>Male</option><option>Female</option><option>Other</option></select></label></div>
     </div>
-    <div id="fm_tshirt_wrap_${idx}" style="display:none;">
-      <label>T-Shirt Size
-        <select id="fm_tshirt_size_${idx}">
-          <option value="XS">XS</option>
-          <option value="S">S</option>
-          <option value="M" selected>M</option>
-          <option value="L">L</option>
-          <option value="XL">XL</option>
-          <option value="XXL">XXL</option>
-          <option value="Kids-S">Kids S</option>
-          <option value="Kids-M">Kids M</option>
-          <option value="Kids-L">Kids L</option>
-        </select>
-      </label>
+    <label class="mf-tshirt-toggle" style="margin-top:8px;">
+      <input type="checkbox" id="fm_tshirt_${idx}" onchange="toggleFmTshirt(${idx}); updateSummary();">
+      <span class="mf-tshirt-toggle-text">T-Shirt <span class="mf-tshirt-price">₹800 one-time</span></span>
+    </label>
+    <div id="fm_tshirt_wrap_${idx}" style="display:none;" class="mf-field">
+      <label class="mf-label" style="margin-top:8px;">T-Shirt Size</label>
+      <div class="mf-size-grid">
+        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">XS</button>
+        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">S</button>
+        <button type="button" class="mf-size-btn active" onclick="selectSize(this,'fm_tshirt_size_${idx}')">M</button>
+        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">L</button>
+        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">XL</button>
+        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">XXL</button>
+        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">Kids-S</button>
+        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">Kids-M</button>
+        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">Kids-L</button>
+      </div>
+      <input type="hidden" id="fm_tshirt_size_${idx}" value="M">
     </div>
   `;
   container.appendChild(div);
@@ -3315,75 +3465,50 @@ function removeFamilyMember(idx) {
 
 function toggleFmTshirt(idx) {
   const checked = document.getElementById(`fm_tshirt_${idx}`).checked;
-  document.getElementById(`fm_tshirt_wrap_${idx}`).style.display = checked ? 'block' : 'none';
+  const wrap = document.getElementById(`fm_tshirt_wrap_${idx}`);
+  if (wrap) wrap.style.display = checked ? 'block' : 'none';
+}
+
+function togglePrimaryTshirt() {
+  const checked = document.getElementById('mf_primary_tshirt').checked;
+  const wrap = document.getElementById('mf_primary_tshirt_size_wrap');
+  if (wrap) wrap.style.display = checked ? 'block' : 'none';
+}
+
+function selectSize(btn, inputId) {
+  const parent = btn.closest('.mf-size-grid');
+  if (parent) parent.querySelectorAll('.mf-size-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const input = document.getElementById(inputId);
+  if (input) input.value = btn.textContent.trim();
+}
+
+function updatePhotoLabel(input) {
+  const label = document.getElementById('mf_photo_name');
+  if (label) label.textContent = input.files[0] ? input.files[0].name : 'No file chosen';
 }
 
 // ============================================================
-// PRIMARY MEMBER T-SHIRT TOGGLE
-// ============================================================
-
-document.getElementById('mf_primary_tshirt')?.addEventListener('change', function () {
-  document.getElementById('mf_primary_tshirt_size_wrap').style.display = this.checked ? '' : 'none';
-  updateSummary();
-});
-
-// ============================================================
-// PAYMENT SUMMARY CALCULATOR
-// ============================================================
-
-function updateSummary() {
-  const type = document.getElementById('mf_type')?.value || 'Sathi';
-  const category = document.getElementById('mf_category')?.value || 'individual';
-  const duration = document.getElementById('mf_duration')?.value || (type === 'Mitra' ? 'Lifetime' : 'Monthly');
-
-  let membershipAmt = 0;
-  if (PRICING[type] && PRICING[type][category] && PRICING[type][category][duration] !== undefined) {
-    membershipAmt = PRICING[type][category][duration];
-  }
-
-  // Count T-shirts
-  let tshirtCount = 0;
-  if (document.getElementById('mf_primary_tshirt')?.checked) tshirtCount++;
-
-  // Count family T-shirts
-  document.querySelectorAll('[id^="fm_tshirt_"]').forEach(cb => {
-    if (!cb.id.includes('wrap') && !cb.id.includes('size') && cb.checked) tshirtCount++;
-  });
-
-  const tshirtAmt = tshirtCount * TSHIRT_COST;
-  const total = membershipAmt + tshirtAmt;
-
-  document.getElementById('summary_membership_amt').textContent = '₹' + membershipAmt.toLocaleString('en-IN');
-
-  const tshirtRow = document.getElementById('summary_tshirt_row');
-  if (tshirtCount > 0) {
-    tshirtRow.style.display = '';
-    document.getElementById('summary_tshirt_label').textContent = `T-Shirt ×${tshirtCount}`;
-    document.getElementById('summary_tshirt_amt').textContent = '₹' + tshirtAmt.toLocaleString('en-IN');
-  } else {
-    tshirtRow.style.display = 'none';
-  }
-
-  document.getElementById('summary_total').textContent = '₹' + total.toLocaleString('en-IN');
-
-  return { membershipAmt, tshirtCount, tshirtAmt, total };
-}
-
-document.getElementById('mf_duration')?.addEventListener('change', updateSummary);
-document.getElementById('mf_category')?.addEventListener('change', updateSummary);
-
-// ============================================================
-// COLLECT FAMILY MEMBERS DATA
+// COLLECT FAMILY DATA
 // ============================================================
 
 function collectFamilyData() {
   const family = [];
-  const fmCards = document.querySelectorAll('[id^="fm_"][id$=""]');
+  // Primary member tshirt
+  const primaryTshirt = document.getElementById('mf_primary_tshirt')?.checked;
+  if (primaryTshirt) {
+    family.push({
+      name: document.getElementById('mf_name')?.value.trim() || 'Primary Member',
+      relation: 'Self', age: '', gender: '',
+      tshirt: true,
+      tshirt_size: document.getElementById('mf_primary_tshirt_size')?.value || 'M'
+    });
+  }
+  // Family members
   let idx = 1;
-
   while (document.getElementById(`fm_${idx}`)) {
     const nameEl = document.getElementById(`fm_name_${idx}`);
-    if (nameEl && nameEl.value.trim()) {
+    if (nameEl?.value.trim()) {
       const hasTshirt = document.getElementById(`fm_tshirt_${idx}`)?.checked || false;
       family.push({
         name: nameEl.value.trim(),
@@ -3396,31 +3521,57 @@ function collectFamilyData() {
     }
     idx++;
   }
-
-  // Add primary member tshirt if selected
-  const primaryTshirt = document.getElementById('mf_primary_tshirt')?.checked;
-  if (primaryTshirt) {
-    family.unshift({
-      name: document.getElementById('mf_name')?.value.trim() || 'Primary Member',
-      relation: 'Self',
-      age: '',
-      gender: '',
-      tshirt: true,
-      tshirt_size: document.getElementById('mf_primary_tshirt_size')?.value || 'M'
-    });
-  }
-
   return family;
 }
 
 // ============================================================
-// MEMBERSHIP FORM SUBMIT → RAZORPAY
+// CONFIRM BOX (Step 4)
 // ============================================================
 
-document.getElementById('membershipForm')?.addEventListener('submit', function (e) {
+function populateConfirmBox() {
+  const box = document.getElementById('mf_confirm_details');
+  if (!box) return;
+  const type = document.getElementById('mf_type').value;
+  const name = document.getElementById('mf_name').value;
+  const mobile = document.getElementById('mf_mobile').value;
+  const email = document.getElementById('mf_email').value;
+  const address = document.getElementById('mf_address').value;
+  const pin = document.getElementById('mf_pin').value;
+  const district = document.getElementById('mf_district').value;
+  const state = document.getElementById('mf_state').value;
+  const cat = document.getElementById('mf_category').value;
+  const dur = document.getElementById('mf_duration').value;
+  const { membershipAmt, tshirtCount, tshirtAmt } = updateSummary();
+
+  const paymentNote = type === 'Sathi'
+    ? `₹${membershipAmt.toLocaleString('en-IN')}/${dur.toLowerCase()} recurring subscription${tshirtCount > 0 ? ` + ₹${tshirtAmt.toLocaleString('en-IN')} T-shirt (once)` : ''}`
+    : `₹${(membershipAmt + tshirtAmt).toLocaleString('en-IN')} one-time`;
+
+  box.innerHTML = `
+    <div class="mf-confirm-row"><span class="mf-confirm-label">Name</span><span class="mf-confirm-value">${name}</span></div>
+    <div class="mf-confirm-row"><span class="mf-confirm-label">Mobile</span><span class="mf-confirm-value">${mobile}</span></div>
+    <div class="mf-confirm-row"><span class="mf-confirm-label">Email</span><span class="mf-confirm-value">${email}</span></div>
+    <div class="mf-confirm-row"><span class="mf-confirm-label">Address</span><span class="mf-confirm-value">${address}, ${pin}, ${district}, ${state}</span></div>
+    <div class="mf-confirm-row"><span class="mf-confirm-label">Membership</span><span class="mf-confirm-value">${type} — ${cat === 'individual' ? 'Individual' : 'Family'}${type === 'Sathi' ? ' — ' + dur : ''}</span></div>
+    <div class="mf-confirm-row"><span class="mf-confirm-label">T-Shirts</span><span class="mf-confirm-value">${tshirtCount > 0 ? tshirtCount + ' × ₹800' : 'None'}</span></div>
+    <div class="mf-confirm-row" style="border-top:2px solid var(--green-tint);margin-top:8px;padding-top:8px;">
+      <span class="mf-confirm-label" style="color:var(--green-deep);font-weight:700;">Payment</span>
+      <span class="mf-confirm-value" style="color:var(--green-deep);">${paymentNote}</span>
+    </div>
+  `;
+}
+
+// ============================================================
+// MEMBERSHIP FORM SUBMIT
+// ============================================================
+
+document.getElementById('membershipForm')?.addEventListener('submit', async function (e) {
   e.preventDefault();
 
-  // Validate required fields
+  const declaration = document.getElementById('mf_declaration').checked;
+  if (!declaration) { alert('Please accept the declaration before proceeding.'); return; }
+
+  const type = document.getElementById('mf_type').value;
   const name = document.getElementById('mf_name').value.trim();
   const mobile = document.getElementById('mf_mobile').value.trim();
   const email = document.getElementById('mf_email').value.trim();
@@ -3428,76 +3579,105 @@ document.getElementById('membershipForm')?.addEventListener('submit', function (
   const pin = document.getElementById('mf_pin').value.trim();
   const district = document.getElementById('mf_district').value.trim();
   const state = document.getElementById('mf_state').value.trim();
-  const declaration = document.getElementById('mf_declaration').checked;
-
-  if (!name || !mobile || !email || !address || !pin || !district || !state) {
-    alert('Please fill in all required fields.');
-    return;
-  }
-  if (!declaration) {
-    alert('Please accept the declaration before proceeding.');
-    return;
-  }
-  const cleanMob = mobile.replace(/^0+/, ''); if (!/^\d{10}$/.test(cleanMob)) { alert('Please enter a valid 10-digit mobile number.'); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    alert('Please enter a valid email address.');
-    return;
-  }
-
-  const type = document.getElementById('mf_type').value;
   const category = document.getElementById('mf_category').value;
   const duration = document.getElementById('mf_duration').value;
-  const { membershipAmt, tshirtCount, tshirtAmt, total } = updateSummary();
+  const { membershipAmt, tshirtCount, tshirtAmt } = updateSummary();
   const familyData = collectFamilyData();
   const familyCount = document.querySelectorAll('[id^="fm_"][id$=""]').length;
 
-  if (total < 100) {
-    alert('Membership amount seems incorrect. Please try again.');
-    return;
-  }
+  const payBtn = document.getElementById('membershipPayBtn');
+  if (payBtn) { payBtn.disabled = true; payBtn.textContent = 'Opening Payment...'; }
 
-  const options = {
-    key: RAZORPAY_KEY,
-    amount: total * 100, // Convert to paise
-    currency: 'INR',
-    name: 'RNEx Trust (Regd.)',
-    description: `${type} Membership - ${category} - ${duration}`,
-    image: 'https://www.rnextrust.com/assets/images/logo.png',
-    prefill: {
-      name: name,
-      email: email,
-      contact: mobile
-    },
-    notes: {
-      payment_type: 'membership',
-      member_name: name,
-      mobile: mobile,
-      email: email,
-      address: address,
-      pin_code: pin,
-      district: district,
-      state: state,
-      membership_type: type,
-      duration: duration,
-      membership_amount: membershipAmt.toString(),
-      family_count: familyCount.toString(),
-      tshirt_count: tshirtCount.toString(),
-      family_members: JSON.stringify(familyData)
-    },
-    theme: { color: '#1B7340' },
-    handler: function (response) {
-      document.getElementById('membershipModal').classList.remove('open');
-      showPaymentSuccess('membership', name, response.razorpay_payment_id, total);
-    },
-    modal: {
-      ondismiss: function () {
-        // User closed payment window without paying
-      }
-    }
+  const memberNotes = {
+    payment_type: type === 'Sathi' ? 'membership_subscription' : 'membership_onetime',
+    member_name: name,
+    mobile: mobile,
+    email: email,
+    address: address,
+    pin_code: pin,
+    district: district,
+    state: state,
+    membership_type: type,
+    duration: duration,
+    category: category,
+    membership_amount: membershipAmt.toString(),
+    family_count: familyCount.toString(),
+    tshirt_count: tshirtCount.toString(),
+    tshirt_amount: tshirtAmt.toString(),
+    family_members: JSON.stringify(familyData)
   };
 
-  const rzp = new Razorpay(options);
-  rzp.open();
+  if (type === 'Sathi') {
+    // SUBSCRIPTION FLOW
+    try {
+      // Get plan ID
+      const planId = SATHI_PLANS[category]?.[duration];
+      if (!planId) throw new Error('Plan not found for ' + category + ' ' + duration);
+
+      // Call Apps Script to create subscription
+      const resp = await fetch(APPS_SCRIPT_URL + '?action=create_subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan_id: planId,
+          member_notes: memberNotes,
+          tshirt_amount: tshirtAmt
+        })
+      });
+
+      const data = await resp.json();
+      if (!data.subscription_id) throw new Error(data.error || 'Failed to create subscription');
+
+      // Open Razorpay with subscription_id
+      const options = {
+        key: RAZORPAY_KEY,
+        subscription_id: data.subscription_id,
+        name: 'RNEx Trust (Regd.)',
+        description: `Sathi ${category === 'individual' ? 'Individual' : 'Family'} — ${duration}`,
+        image: 'https://www.rnextrust.com/assets/images/logo.png',
+        prefill: { name, email, contact: mobile },
+        notes: memberNotes,
+        theme: { color: '#1B7340' },
+        handler: function(response) {
+          document.getElementById('membershipModal').classList.remove('open');
+          showPaymentSuccess('membership', name, response.razorpay_payment_id, membershipAmt, true);
+        },
+        modal: { ondismiss: function() {
+          if (payBtn) { payBtn.disabled = false; payBtn.textContent = 'Pay Securely 🔒'; }
+        }}
+      };
+      const rzp = new Razorpay(options);
+      rzp.open();
+
+    } catch (err) {
+      alert('Could not start subscription: ' + err.message + '\nPlease try again or contact us.');
+      if (payBtn) { payBtn.disabled = false; payBtn.textContent = 'Pay Securely 🔒'; }
+    }
+
+  } else {
+    // MITRA ONE-TIME PAYMENT FLOW
+    const total = membershipAmt + tshirtAmt;
+    const options = {
+      key: RAZORPAY_KEY,
+      amount: total * 100,
+      currency: 'INR',
+      name: 'RNEx Trust (Regd.)',
+      description: `Mitra ${category === 'individual' ? 'Individual' : 'Family'} Membership`,
+      image: 'https://www.rnextrust.com/assets/images/logo.png',
+      prefill: { name, email, contact: mobile },
+      notes: memberNotes,
+      theme: { color: '#1B7340' },
+      handler: function(response) {
+        document.getElementById('membershipModal').classList.remove('open');
+        showPaymentSuccess('membership', name, response.razorpay_payment_id, total, false);
+      },
+      modal: { ondismiss: function() {
+        if (payBtn) { payBtn.disabled = false; payBtn.textContent = 'Pay Securely 🔒'; }
+      }}
+    };
+    const rzp = new Razorpay(options);
+    rzp.open();
+  }
 });
 
 // ============================================================
@@ -3511,7 +3691,6 @@ function clearPresetActive() {
 function setDonationAmount(amount) {
   document.getElementById('df_amount').value = amount;
   document.querySelectorAll('.donation-preset').forEach(btn => btn.classList.remove('active'));
-  // Find the clicked button and mark active
   const clickedBtn = event.currentTarget;
   if (clickedBtn) clickedBtn.classList.add('active');
 }
@@ -3522,22 +3701,16 @@ document.getElementById('donationForm')?.addEventListener('submit', function (e)
   const name = document.getElementById('df_name').value.trim();
   const mobile = document.getElementById('df_mobile').value.trim();
   const email = document.getElementById('df_email').value.trim();
+  const address = document.getElementById('df_address')?.value.trim() || '';
+  const pin = document.getElementById('df_pin')?.value.trim() || '';
+  const city = document.getElementById('df_city')?.value.trim() || '';
   const amount = parseInt(document.getElementById('df_amount').value);
   const message = document.getElementById('df_message').value.trim();
   const declaration = document.getElementById('df_declaration').checked;
 
-  if (!name || !email) {
-    alert('Please fill in your name and email.');
-    return;
-  }
-  if (!amount || amount < 100) {
-    alert('Minimum donation amount is ₹100.');
-    return;
-  }
-  if (!declaration) {
-    alert('Please accept the declaration before proceeding.');
-    return;
-  }
+  if (!name || !email) { alert('Please fill in your name and email.'); return; }
+  if (!amount || amount < 100) { alert('Minimum donation amount is ₹100.'); return; }
+  if (!declaration) { alert('Please accept the declaration before proceeding.'); return; }
 
   const options = {
     key: RAZORPAY_KEY,
@@ -3558,79 +3731,77 @@ document.getElementById('donationForm')?.addEventListener('submit', function (e)
       message: message
     },
     theme: { color: '#1B7340' },
-    handler: function (response) {
+    handler: function(response) {
       document.getElementById('donationModal').classList.remove('open');
-      showPaymentSuccess('donation', name, response.razorpay_payment_id, amount);
+      showPaymentSuccess('donation', name, response.razorpay_payment_id, amount, false);
     }
   };
-
   const rzp = new Razorpay(options);
   rzp.open();
 });
 
 // ============================================================
-// PAYMENT SUCCESS HANDLER
+// PAYMENT SUCCESS MODAL
 // ============================================================
 
-function showPaymentSuccess(type, name, paymentId, amount) {
-  // Remove any existing success modal
+function showPaymentSuccess(type, name, paymentId, amount, isSubscription) {
   const existing = document.getElementById('paySuccessModal');
   if (existing) existing.remove();
 
   const isMember = type === 'membership';
   const emoji = isMember ? '🎉' : '❤️';
-  const title = isMember ? `Welcome to RNEx Trust!` : `Thank You for Donating!`;
+  const title = isMember ? 'Welcome to RNEx Trust!' : 'Thank You for Donating!';
   const subtitle = isMember
-    ? `Your membership is confirmed. Your Membership ID and invoice will be emailed to you within a few minutes.`
-    : `Your donation receipt will be emailed to you shortly.`;
+    ? (isSubscription
+        ? 'Your Sathi subscription is active! You will be charged automatically each cycle. Your Membership ID and invoice will be emailed shortly.'
+        : 'Your Mitra membership is confirmed! Your Membership ID and invoice will be emailed shortly.')
+    : 'Your donation receipt will be emailed shortly.';
 
   const modal = document.createElement('div');
   modal.id = 'paySuccessModal';
   modal.style.cssText = `
-    position:fixed; inset:0; z-index:999;
-    background:rgba(0,0,0,0.6);
-    display:flex; align-items:center; justify-content:center;
-    padding:16px; font-family:var(--font-body);
+    position:fixed;inset:0;z-index:999;
+    background:rgba(0,0,0,0.65);
+    display:flex;align-items:center;justify-content:center;
+    padding:16px;font-family:var(--font-body);
   `;
+
+  const logoEl = document.querySelector('.footer-logo');
+  const logoSrc = logoEl ? logoEl.src : '';
 
   modal.innerHTML = `
     <div style="
-      background:#fff; border-radius:20px; max-width:360px; width:100%;
-      overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.3);
+      background:#fff;border-radius:20px;max-width:360px;width:100%;
+      overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);
       animation:successPop 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
     ">
-      <!-- Green header -->
-      <div style="background:linear-gradient(135deg,#1B7340,#1E9B3A);padding:28px 24px 20px;text-align:center;">
-        <div style="font-size:3rem;margin-bottom:8px;">${emoji}</div>
-        <div style="font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:6px;">${title}</div>
-        <div style="font-size:0.8rem;color:rgba(255,255,255,0.85);line-height:1.5;">${subtitle}</div>
+      <div style="background:linear-gradient(135deg,#1B7340,#1E9B3A);padding:24px 20px 18px;text-align:center;">
+        <div style="font-size:2.8rem;margin-bottom:6px;">${emoji}</div>
+        <div style="font-size:1.15rem;font-weight:700;color:#fff;margin-bottom:5px;">${title}</div>
+        <div style="font-size:0.78rem;color:rgba(255,255,255,0.88);line-height:1.5;">${subtitle}</div>
       </div>
-
-      <!-- Details -->
-      <div style="padding:20px 24px;">
-        <div style="background:#EAF7EE;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
-          <div style="display:flex;justify-content:space-between;font-size:0.82rem;padding:5px 0;border-bottom:1px dashed #C8E8D2;">
+      <div style="padding:18px 20px;">
+        <div style="background:#EAF7EE;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.82rem;padding:4px 0;border-bottom:1px dashed #C8E8D2;">
             <span style="color:#666;">Name</span>
             <span style="font-weight:600;color:#1A1A1A;">${name}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:0.82rem;padding:5px 0;border-bottom:1px dashed #C8E8D2;">
-            <span style="color:#666;">Amount</span>
-            <span style="font-weight:700;color:#1B7340;">₹${amount.toLocaleString('en-IN')}</span>
+          <div style="display:flex;justify-content:space-between;font-size:0.82rem;padding:4px 0;border-bottom:1px dashed #C8E8D2;">
+            <span style="color:#666;">${isSubscription ? 'First Payment' : 'Amount'}</span>
+            <span style="font-weight:700;color:#1B7340;">₹${amount.toLocaleString('en-IN')}${isSubscription ? ' (then recurring)' : ''}</span>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:5px 0;border-bottom:1px dashed #C8E8D2;">
+          <div style="display:flex;justify-content:space-between;font-size:0.76rem;padding:4px 0;">
             <span style="color:#666;">Payment ID</span>
-            <span style="font-weight:500;color:#1A1A1A;font-size:0.72rem;">${paymentId}</span>
+            <span style="font-weight:500;color:#1A1A1A;font-size:0.7rem;word-break:break-all;">${paymentId}</span>
           </div>
         </div>
-
-        <div style="text-align:center;margin-bottom:16px;">
-          ` + (document.querySelector(".footer-logo") ? `<img src="${document.querySelector(".footer-logo").src}" alt="RNEx Trust" style="height:32px;width:auto;opacity:0.9;">` : `<div style="font-size:1rem;font-weight:800;color:#1B7340;">RNEx Trust</div>`) + `
-          <p style="font-size:0.72rem;color:#888;margin:6px 0 0;">RNEx Trust (Regd.) · Reg. No. 202600739017949</p>
-          <p style="font-size:0.7rem;color:#aaa;margin:3px 0 0;">D-502, Brave Hearts Apartments, Raj Nagar Extension, Ghaziabad</p>
+        <div style="text-align:center;margin-bottom:14px;">
+          ${logoSrc ? `<img src="${logoSrc}" alt="RNEx Trust" style="height:30px;width:auto;opacity:0.9;">` : '<div style="font-weight:800;color:#1B7340;font-size:1rem;">RNEx Trust</div>'}
+          <p style="font-size:0.7rem;color:#888;margin:4px 0 0;">RNEx Trust (Regd.) · Reg. No. 202600739017949</p>
+          <p style="font-size:0.68rem;color:#aaa;margin:2px 0 0;">D-502, Brave Hearts Apartments, Raj Nagar Extension, Ghaziabad</p>
         </div>
-
         <button onclick="document.getElementById('paySuccessModal').remove()" style="
-          width:100%;padding:13px;background:linear-gradient(135deg,#1B7340,#1E9B3A);
+          width:100%;padding:12px;background:linear-gradient(135deg,#1B7340,#1E9B3A);
           color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;
           cursor:pointer;font-family:var(--font-body);
         ">Done ✓</button>
@@ -3639,11 +3810,11 @@ function showPaymentSuccess(type, name, paymentId, amount) {
   `;
 
   document.body.appendChild(modal);
-  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 // ============================================================
-// MODAL CLOSE HANDLERS
+// CLOSE MODALS
 // ============================================================
 
 function closeModal(id) {
@@ -3655,12 +3826,10 @@ function closeModal(id) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   const modalId = btnId === 'membershipModalClose' ? 'membershipModal' : 'donationModal';
-  // Both click and touchend for reliable mobile response
-  btn.addEventListener('click', (e) => { e.stopPropagation(); closeModal(modalId); });
-  btn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); closeModal(modalId); });
+  btn.addEventListener('click', e => { e.stopPropagation(); closeModal(modalId); });
+  btn.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); closeModal(modalId); });
 });
 
-// Close on overlay click/tap
 ['membershipModal','donationModal'].forEach(id => {
   const overlay = document.getElementById(id);
   if (!overlay) return;
