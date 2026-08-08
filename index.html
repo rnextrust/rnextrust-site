@@ -2217,15 +2217,6 @@ iframe.goog-te-menu-frame { display: none !important; }
 }
 
 
-/* Shorten button text on very small screens */
-@media (max-width: 380px) {
-  .cta-strip-btn-donate .btn-full { display: none; }
-  .cta-strip-btn-donate::before { content: '💛 Donate'; }
-  .cta-strip-btn-van .btn-full { display: none; }
-  .cta-strip-btn-van::before { content: '🚐 Van Fund'; }
-  .cta-strip-btn-member .btn-full { display: none; }
-  .cta-strip-btn-member::before { content: '🤝 Join'; }
-}
 
 
 /* ============================================================
@@ -2301,6 +2292,38 @@ iframe.goog-te-menu-frame { display: none !important; }
   }
 }
 
+
+/* Mobile nav donation section */
+.nav-mobile-donate-section {
+  display: none;
+}
+.nav-mobile-donate-heading {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  padding: 16px 24px 8px;
+  margin: 0;
+  border-top: 2px solid var(--border-soft);
+}
+.nav-mobile-donate-btn {
+  display: block;
+  padding: 12px 24px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom: 1px solid var(--border-soft);
+  text-decoration: none;
+  background: var(--paper);
+}
+.nav-mobile-van { color: #1B3A7A !important; background: #EEF2FF !important; }
+.nav-mobile-green { color: var(--green-deep) !important; background: var(--green-tint) !important; }
+
+@media (max-width: 900px) {
+  .nav-mobile-donate-section { display: block; }
+}
+
 </style>
 </head>
 <body>
@@ -2357,24 +2380,26 @@ iframe.goog-te-menu-frame { display: none !important; }
       <a href="#trustees">Trustees</a>
       <a href="#involved">Get Involved</a>
       <a href="#membership">Membership</a>
-      <a href="#donate" class="nav-donate">Donate</a>
-      <a href="#donate-now" class="nav-donate-link"
-         onclick="setTimeout(()=>document.getElementById('donationModal').classList.add('open'),400)">
-        💛 Donate Now
-      </a>
-      <a href="#donate-for-mortuary-van" class="nav-donate-link nav-van"
-         onclick="setTimeout(()=>document.getElementById('mortuaryModal').classList.add('open'),400)">
-        🚐 Mortuary Van Fund
-      </a>
-      <a href="#join-sathi" class="nav-donate-link nav-member"
-         onclick="setTimeout(()=>openMembershipForm('Sathi'),400)">
-        🤝 Join as Sathi
-      </a>
-      <a href="#join-mitra" class="nav-donate-link nav-member"
-         onclick="setTimeout(()=>openMembershipForm('Mitra'),400)">
-        ⭐ Join as Mitra
-      </a>
       <a href="#contact" class="nav-cta">Contact</a>
+      <div class="nav-mobile-donate-section">
+        <p class="nav-mobile-donate-heading">Donations &amp; Membership</p>
+        <a href="#donate-now" class="nav-mobile-donate-btn"
+           onclick="closeNavAndOpen('donationModal')">
+          💛 Donate Now
+        </a>
+        <a href="#donate-for-mortuary-van" class="nav-mobile-donate-btn nav-mobile-van"
+           onclick="closeNavAndOpen('mortuaryModal')">
+          🚐 Donate for Mortuary Van
+        </a>
+        <a href="#join-sathi" class="nav-mobile-donate-btn nav-mobile-green"
+           onclick="closeNavAndOpenMembership('Sathi')">
+          🤝 Join as Sathi — ₹100/month
+        </a>
+        <a href="#join-mitra" class="nav-mobile-donate-btn nav-mobile-green"
+           onclick="closeNavAndOpenMembership('Mitra')">
+          ⭐ Join as Mitra — ₹11,000 lifetime
+        </a>
+      </div>
     </nav>
     <div class="lang-toggle-wrap">
       <button class="lang-btn active" id="langEN" onclick="setLanguage('en')">EN</button>
@@ -4434,6 +4459,43 @@ function closeModal(id) {
   const m = document.getElementById(id);
   if (m) m.classList.remove('open');
 }
+
+function closeNav() {
+  const nav = document.getElementById('mainNav');
+  const btn = document.getElementById('navToggle');
+  if (nav) nav.classList.remove('open');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function closeNavAndOpen(modalId) {
+  closeNav();
+  setTimeout(() => {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.add('open');
+  }, 300);
+}
+
+function closeNavAndOpenMembership(type) {
+  closeNav();
+  setTimeout(() => openMembershipForm(type), 300);
+}
+
+// Auto-close nav on scroll
+window.addEventListener('scroll', function() {
+  const nav = document.getElementById('mainNav');
+  if (nav && nav.classList.contains('open')) {
+    closeNav();
+  }
+}, { passive: true });
+
+// Close nav when any regular nav link is clicked
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('#mainNav a[href^="#"]').forEach(link => {
+    link.addEventListener('click', function() {
+      closeNav();
+    });
+  });
+});
 
 ['membershipModalClose','donationModalClose'].forEach(btnId => {
   const btn = document.getElementById(btnId);
