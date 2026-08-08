@@ -2227,6 +2227,80 @@ iframe.goog-te-menu-frame { display: none !important; }
   .cta-strip-btn-member::before { content: '🤝 Join'; }
 }
 
+
+/* ============================================================
+   CTA Strip Mobile — Clean Fix
+   ============================================================ */
+@media (max-width: 640px) {
+  .cta-strip-inner {
+    padding: 8px 12px;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cta-strip-text { display: none; }
+  .cta-strip-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    width: 100%;
+  }
+  .cta-strip-btn {
+    padding: 7px 12px;
+    font-size: 0.74rem;
+    flex: 0 0 auto;
+  }
+  .cta-btn-full {
+    flex: 1 1 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+
+/* Donation links in mobile nav */
+.nav-donate-link {
+  display: block;
+  padding: 14px 24px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom: 1px solid var(--border-soft);
+  text-decoration: none;
+}
+.nav-van {
+  color: #1B3A7A !important;
+}
+.nav-member {
+  color: var(--green-deep) !important;
+}
+
+/* Fix saffron strip - force 2 rows on mobile */
+@media (max-width: 640px) {
+  .cta-strip-inner {
+    flex-direction: column !important;
+    padding: 8px 12px !important;
+    gap: 6px !important;
+  }
+  .cta-strip-text { display: none !important; }
+  .cta-strip-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .cta-btn-full {
+    grid-column: 1 / -1 !important;
+    text-align: center !important;
+  }
+  .cta-strip-btn {
+    padding: 8px 10px !important;
+    font-size: 0.74rem !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2243,14 +2317,14 @@ iframe.goog-te-menu-frame { display: none !important; }
     <div class="cta-strip-actions">
       <a href="#donate" class="cta-strip-btn cta-strip-btn-donate"
          onclick="setTimeout(()=>document.getElementById('donationModal').classList.add('open'),400)">
-        💛 Donate Now
-      </a>
-      <a href="#donate-for-mortuary-van" class="cta-strip-btn cta-strip-btn-van"
-         onclick="setTimeout(()=>document.getElementById('mortuaryModal').classList.add('open'),400)">
-        🚐 Donate for Mortuary Van
+        💛 <span class="cta-btn-text">Donate Now</span>
       </a>
       <a href="#membership" class="cta-strip-btn cta-strip-btn-member">
-        🤝 Become a Member
+        🤝 <span class="cta-btn-text">Become a Member</span>
+      </a>
+      <a href="#donate-for-mortuary-van" class="cta-strip-btn cta-strip-btn-van cta-btn-full"
+         onclick="setTimeout(()=>document.getElementById('mortuaryModal').classList.add('open'),400)">
+        🚐 <span class="cta-btn-text">Donate for Mortuary Van</span>
       </a>
     </div>
   </div>
@@ -2284,6 +2358,22 @@ iframe.goog-te-menu-frame { display: none !important; }
       <a href="#involved">Get Involved</a>
       <a href="#membership">Membership</a>
       <a href="#donate" class="nav-donate">Donate</a>
+      <a href="#donate-now" class="nav-donate-link"
+         onclick="setTimeout(()=>document.getElementById('donationModal').classList.add('open'),400)">
+        💛 Donate Now
+      </a>
+      <a href="#donate-for-mortuary-van" class="nav-donate-link nav-van"
+         onclick="setTimeout(()=>document.getElementById('mortuaryModal').classList.add('open'),400)">
+        🚐 Mortuary Van Fund
+      </a>
+      <a href="#join-sathi" class="nav-donate-link nav-member"
+         onclick="setTimeout(()=>openMembershipForm('Sathi'),400)">
+        🤝 Join as Sathi
+      </a>
+      <a href="#join-mitra" class="nav-donate-link nav-member"
+         onclick="setTimeout(()=>openMembershipForm('Mitra'),400)">
+        ⭐ Join as Mitra
+      </a>
       <a href="#contact" class="nav-cta">Contact</a>
     </nav>
     <div class="lang-toggle-wrap">
