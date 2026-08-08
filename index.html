@@ -4498,9 +4498,17 @@ function setLanguage(lang) {
 <!-- ====== MORTUARY VAN FUND MODAL ====== -->
 <div class="modal-overlay" id="mortuaryModal">
   <div class="modal-box modal-donation">
-    <button class="modal-close" id="mortuaryModalClose">&times;</button>
 
-    <div class="donation-modal-header" style="background:linear-gradient(135deg,#1B3A7A 0%, #2451B7 100%);">
+    <div class="donation-modal-header" style="background:linear-gradient(135deg,#1B3A7A 0%, #2451B7 100%);position:relative;">
+      <button id="mortuaryModalClose" style="
+        position:absolute;top:12px;right:12px;
+        width:44px;height:44px;border-radius:50%;
+        background:rgba(255,255,255,0.25);border:none;
+        color:#fff;font-size:1.4rem;cursor:pointer;
+        display:flex;align-items:center;justify-content:center;
+        z-index:10;-webkit-tap-highlight-color:rgba(0,0,0,0.1);
+        touch-action:manipulation;
+      ">&times;</button>
       <div class="donation-modal-icon">🚐</div>
       <h2 class="donation-modal-title">Mortuary Van Fund</h2>
       <p class="donation-modal-subtitle">Help RNEx Trust acquire a community mortuary van for Raj Nagar Extension. Every contribution brings us closer to serving families in their most difficult moments.</p>
