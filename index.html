@@ -3333,6 +3333,66 @@ function populateConfirmBox() {
   }, { passive: true });
 })();
 
+
+// ===== Deep link handler — #donate-now and #join-now =====
+(function() {
+  function handleDeepLink() {
+    const hash = window.location.hash;
+
+    if (hash === '#donate-now') {
+      // Scroll to donate section and open donation modal
+      setTimeout(function() {
+        const donateSection = document.getElementById('donate');
+        if (donateSection) {
+          donateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        setTimeout(function() {
+          const modal = document.getElementById('donationModal');
+          if (modal) modal.classList.add('open');
+        }, 600);
+      }, 400);
+    }
+
+    if (hash === '#join-now') {
+      // Scroll to membership section
+      setTimeout(function() {
+        const memberSection = document.getElementById('membership');
+        if (memberSection) {
+          memberSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 400);
+    }
+
+    if (hash === '#join-sathi') {
+      // Open Sathi membership form directly
+      setTimeout(function() {
+        const memberSection = document.getElementById('membership');
+        if (memberSection) memberSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(function() { openMembershipForm('Sathi'); }, 600);
+      }, 400);
+    }
+
+    if (hash === '#join-mitra') {
+      // Open Mitra membership form directly
+      setTimeout(function() {
+        const memberSection = document.getElementById('membership');
+        if (memberSection) memberSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(function() { openMembershipForm('Mitra'); }, 600);
+      }, 400);
+    }
+  }
+
+  // Run on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', handleDeepLink);
+  } else {
+    handleDeepLink();
+  }
+
+  // Also handle hash changes
+  window.addEventListener('hashchange', handleDeepLink);
+})();
+
 // ===== Event banner & event-card auto-status (date-driven) =====
 // Uses the visitor's local date. Dates are compared as YYYY-MM-DD strings (safe, no timezone math needed).
 
