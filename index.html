@@ -3687,16 +3687,7 @@ document.getElementById('mortuaryForm')?.addEventListener('submit', function(e) 
   rzp.open();
 });
 
-// Close mortuary modal
-document.getElementById('mortuaryModalClose')?.addEventListener('click', e => {
-  e.stopPropagation();
-  closeModal('mortuaryModal');
-});
-document.getElementById('mortuaryModalClose')?.addEventListener('touchend', e => {
-  e.preventDefault();
-  e.stopPropagation();
-  closeModal('mortuaryModal');
-});
+// Close mortuary modal on overlay click
 document.getElementById('mortuaryModal')?.addEventListener('click', function(e) {
   if (e.target === this) closeModal('mortuaryModal');
 });
@@ -4699,18 +4690,20 @@ function setLanguage(lang) {
 
 <!-- ====== MORTUARY VAN FUND MODAL ====== -->
 <div class="modal-overlay" id="mortuaryModal">
-  <div class="modal-box modal-donation">
+  <div class="modal-box modal-donation" style="position:relative;">
 
-    <div class="donation-modal-header" style="background:linear-gradient(135deg,#1B3A7A 0%, #2451B7 100%);position:relative;">
-      <button id="mortuaryModalClose" style="
-        position:absolute;top:12px;right:12px;
-        width:44px;height:44px;border-radius:50%;
-        background:rgba(255,255,255,0.25);border:none;
-        color:#fff;font-size:1.4rem;cursor:pointer;
-        display:flex;align-items:center;justify-content:center;
-        z-index:10;-webkit-tap-highlight-color:rgba(0,0,0,0.1);
-        touch-action:manipulation;
-      ">&times;</button>
+    <!-- Close button outside header to avoid touch blocking -->
+    <button id="mortuaryModalClose" style="
+      position:absolute;top:10px;right:10px;
+      width:48px;height:48px;border-radius:50%;
+      background:rgba(255,255,255,0.9);border:2px solid #1B3A7A;
+      color:#1B3A7A;font-size:1.5rem;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      z-index:9999;-webkit-tap-highlight-color:rgba(0,0,0,0.2);
+      touch-action:manipulation;font-weight:700;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+    " onclick="closeModal('mortuaryModal')">&times;</button>
+    <div class="donation-modal-header" style="background:linear-gradient(135deg,#1B3A7A 0%, #2451B7 100%);position:relative;padding-top:20px;">
       <div class="donation-modal-icon">🚐</div>
       <h2 class="donation-modal-title">Mortuary Van Fund</h2>
       <p class="donation-modal-subtitle">Help RNEx Trust acquire a community mortuary van for Raj Nagar Extension. Every contribution brings us closer to serving families in their most difficult moments.</p>
