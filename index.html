@@ -1419,11 +1419,11 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 .cta-strip-inner {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 10px 24px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .cta-strip-text {
@@ -1432,11 +1432,16 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   letter-spacing: 0.02em;
   text-align: center;
 }
+@media (max-width: 520px) {
+  .cta-strip-text { display: none; }
+}
 .cta-strip-text strong { font-weight: 800; }
 .cta-strip-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 .cta-strip-btn {
   display: inline-flex;
@@ -2209,6 +2214,17 @@ iframe.goog-te-menu-frame { display: none !important; }
 @media (max-width: 600px) {
   .cta-strip-actions { gap: 6px; flex-wrap: wrap; justify-content: center; }
   .cta-strip-btn { padding: 6px 10px; font-size: 0.72rem; }
+}
+
+
+/* Shorten button text on very small screens */
+@media (max-width: 380px) {
+  .cta-strip-btn-donate .btn-full { display: none; }
+  .cta-strip-btn-donate::before { content: '💛 Donate'; }
+  .cta-strip-btn-van .btn-full { display: none; }
+  .cta-strip-btn-van::before { content: '🚐 Van Fund'; }
+  .cta-strip-btn-member .btn-full { display: none; }
+  .cta-strip-btn-member::before { content: '🤝 Join'; }
 }
 
 </style>
