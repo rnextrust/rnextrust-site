@@ -1457,11 +1457,15 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   color: #E05A00;
 }
 .cta-strip-btn-member {
-  background: rgba(255,255,255,0.2);
+  background: #1B7340;
   color: #fff;
-  border: 1.5px solid rgba(255,255,255,0.6);
+  border: 1.5px solid #1E9B3A;
 }
-.cta-strip-btn-member:hover { background: rgba(255,255,255,0.35); }
+.cta-strip-btn-member:hover {
+  background: #1E9B3A;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(27,115,64,0.4);
+}
 
 /* Emoji animation */
 .cta-emoji {
@@ -2191,6 +2195,22 @@ iframe.goog-te-menu-frame { display: none !important; }
   .lang-btn { padding: 4px 10px; font-size: 0.72rem; }
 }
 
+
+.cta-strip-btn-van {
+  background: #1B3A7A;
+  color: #fff;
+  border: 1.5px solid #2451B7;
+}
+.cta-strip-btn-van:hover {
+  background: #2451B7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(27,58,122,0.4);
+}
+@media (max-width: 600px) {
+  .cta-strip-actions { gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .cta-strip-btn { padding: 6px 10px; font-size: 0.72rem; }
+}
+
 </style>
 </head>
 <body>
@@ -2208,6 +2228,10 @@ iframe.goog-te-menu-frame { display: none !important; }
       <a href="#donate" class="cta-strip-btn cta-strip-btn-donate"
          onclick="setTimeout(()=>document.getElementById('donationModal').classList.add('open'),400)">
         💛 Donate Now
+      </a>
+      <a href="#donate-for-mortuary-van" class="cta-strip-btn cta-strip-btn-van"
+         onclick="setTimeout(()=>document.getElementById('mortuaryModal').classList.add('open'),400)">
+        🚐 Donate for Mortuary Van
       </a>
       <a href="#membership" class="cta-strip-btn cta-strip-btn-member">
         🤝 Become a Member
@@ -2766,7 +2790,7 @@ iframe.goog-te-menu-frame { display: none !important; }
         </div>
         <div class="donation-custom-amount">
           <span class="donation-rupee-symbol">₹</span>
-          <input type="number" id="df_amount" required min="100" placeholder="Enter amount (min ₹100)" oninput="clearPresetActive()">
+          <input type="number" id="df_amount" required min="101" placeholder="Minimum ₹101" oninput="clearPresetActive()">
         </div>
       </div>
 
@@ -2899,6 +2923,8 @@ iframe.goog-te-menu-frame { display: none !important; }
       <div class="bank-details">
         <h4>Bank Transfer</h4>
         <div class="bank-row"><span>Account Name</span><span>RNEX TRUST</span></div>
+
+
         <div class="bank-row"><span>Account Number</span><span>120040503260</span></div>
         <div class="bank-row"><span>Account Type</span><span>Current Account</span></div>
         <div class="bank-row"><span>Bank</span><span>Canara Bank</span></div>
@@ -2911,6 +2937,40 @@ iframe.goog-te-menu-frame { display: none !important; }
         <p style="font-size:0.88rem; margin-bottom: 12px;">Write to us or message on WhatsApp and we'll share current details and a receipt.</p>
         <a href="mailto:connect@rnextrust.com?subject=Donation%20Enquiry" class="btn btn-ghost btn-block" style="margin-bottom:10px;">Email Us</a>
         <a href="https://wa.me/919012095151?text=Hi%2C%20I%E2%80%99d%20like%20to%20donate%20to%20RNEx%20Trust.%20Could%20you%20share%20the%20details%3F" class="btn btn-ghost btn-block" target="_blank" rel="noopener">WhatsApp Us</a>
+      </div>
+
+      <!-- Mortuary Van Fund Card -->
+      <div style="background:linear-gradient(135deg,#EEF2FF 0%,#E0E7FF 100%);border:2px solid #C7D2FE;border-radius:var(--radius-md);padding:20px;margin-top:20px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <span style="font-size:2rem;">🚐</span>
+          <div>
+            <h4 style="margin:0;color:#1B3A7A;font-size:1rem;">Mortuary Van Fund</h4>
+            <p style="margin:0;font-size:0.8rem;color:#4338CA;">Special Community Initiative</p>
+          </div>
+        </div>
+        <p style="font-size:0.83rem;color:#3730A3;margin:0 0 14px;line-height:1.5;">RNEx Trust is raising funds to acquire a community mortuary van for Raj Nagar Extension — providing dignified support to families during their most difficult moments.</p>
+
+        <!-- Live Progress Bar -->
+        <div id="mvProgressWrap" style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+            <span style="font-size:0.8rem;font-weight:700;color:#1B3A7A;">
+              ₹<span id="mvCollected">...</span> raised
+            </span>
+            <span style="font-size:0.75rem;color:#6366F1;">Goal: ₹20,00,000</span>
+          </div>
+          <div style="background:#C7D2FE;border-radius:100px;height:10px;overflow:hidden;">
+            <div id="mvProgressBar" style="height:100%;background:linear-gradient(90deg,#1B3A7A,#2451B7);border-radius:100px;width:0%;transition:width 1s ease;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px;">
+            <span style="font-size:0.72rem;color:#6366F1;"><span id="mvPercent">0</span>% of goal</span>
+            <span style="font-size:0.72rem;color:#6366F1;"><span id="mvDonors">...</span> donors</span>
+          </div>
+        </div>
+
+        <button class="btn btn-block" onclick="document.getElementById('mortuaryModal').classList.add('open')"
+          style="background:linear-gradient(135deg,#1B3A7A,#2451B7);color:#fff;border:none;padding:12px;border-radius:var(--radius-sm);font-weight:700;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;">
+          Donate to Mortuary Van Fund &rarr;
+        </button>
       </div>
     </div>
 
@@ -3372,6 +3432,13 @@ function populateConfirmBox() {
       }, 400);
     }
 
+    if (hash === '#donate-for-mortuary-van') {
+      setTimeout(function() {
+        const modal = document.getElementById('mortuaryModal');
+        if (modal) modal.classList.add('open');
+      }, 400);
+    }
+
     if (hash === '#join-mitra') {
       // Open Mitra membership form directly
       setTimeout(function() {
@@ -3391,6 +3458,163 @@ function populateConfirmBox() {
 
   // Also handle hash changes
   window.addEventListener('hashchange', handleDeepLink);
+})();
+
+
+// ============================================================
+// Mortuary Van Fund
+// ============================================================
+
+function clearMortuaryPreset() {
+  document.querySelectorAll('#mortuaryModal .donation-preset').forEach(btn => btn.classList.remove('active'));
+}
+
+function setMortuaryAmount(amount) {
+  document.getElementById('mv_amount').value = amount;
+  document.querySelectorAll('#mortuaryModal .donation-preset').forEach(btn => btn.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+document.getElementById('mortuaryForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const name = document.getElementById('mv_name').value.trim();
+  const mobile = document.getElementById('mv_mobile').value.trim();
+  const email = document.getElementById('mv_email').value.trim();
+  const address = document.getElementById('mv_address').value.trim();
+  const pin = document.getElementById('mv_pin').value.trim();
+  const city = document.getElementById('mv_city').value.trim();
+  const amount = parseInt(document.getElementById('mv_amount').value);
+  const message = document.getElementById('mv_message').value.trim();
+  const declaration = document.getElementById('mv_declaration').checked;
+
+  if (!name || !email) { alert('Please fill in your name and email.'); return; }
+  if (!amount || amount < 501) { alert('Minimum donation for Mortuary Van Fund is ₹501.'); return; }
+  if (!declaration) { alert('Please accept the declaration before proceeding.'); return; }
+
+  const options = {
+    key: RAZORPAY_KEY,
+    amount: amount * 100,
+    currency: 'INR',
+    name: 'RNEx Trust (Regd.)',
+    description: 'Mortuary Van Fund — RNEx Trust',
+    image: 'https://www.rnextrust.com/assets/images/logo.png',
+    prefill: { name, email, contact: mobile },
+    notes: {
+      payment_type: 'donation',
+      fund_type: 'Mortuary Van Fund',
+      donor_name: name,
+      mobile: mobile,
+      email: email,
+      address: address,
+      pin_code: pin,
+      city: city,
+      message: message || 'Mortuary Van Fund donation'
+    },
+    theme: { color: '#1B3A7A' },
+    handler: function(response) {
+      document.getElementById('mortuaryModal').classList.remove('open');
+      showPaymentSuccess('donation', name, response.razorpay_payment_id, amount, false);
+    }
+  };
+
+  const rzp = new Razorpay(options);
+  rzp.open();
+});
+
+// Close mortuary modal
+document.getElementById('mortuaryModalClose')?.addEventListener('click', e => {
+  e.stopPropagation();
+  closeModal('mortuaryModal');
+});
+document.getElementById('mortuaryModalClose')?.addEventListener('touchend', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  closeModal('mortuaryModal');
+});
+document.getElementById('mortuaryModal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeModal('mortuaryModal');
+});
+
+
+// ============================================================
+// Mortuary Van Fund — Live Progress from Google Sheet
+// ============================================================
+(function() {
+  const TARGET = 2000000; // ₹20,00,000
+  const SHEET_ID = '1Pde56RX82oYz-vfaHWMZEePa6dLDo7PStD0LwiRONuA';
+
+  // Google Sheets public JSON URL — reads Donations tab
+  // Filters by fund_type = mortuary_van in message column
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Donations`;
+
+  function formatINR(n) {
+    return n.toLocaleString('en-IN');
+  }
+
+  function updateProgress(collected, donors) {
+    const pct = Math.min((collected / TARGET) * 100, 100).toFixed(1);
+
+    // Update donate section card
+    const collectedEl = document.getElementById('mvCollected');
+    const barEl = document.getElementById('mvProgressBar');
+    const pctEl = document.getElementById('mvPercent');
+    const donorsEl = document.getElementById('mvDonors');
+
+    if (collectedEl) collectedEl.textContent = formatINR(collected);
+    if (barEl) setTimeout(() => barEl.style.width = pct + '%', 300);
+    if (pctEl) pctEl.textContent = pct;
+    if (donorsEl) donorsEl.textContent = donors;
+
+    // Update modal
+    const collectedModal = document.getElementById('mvCollectedModal');
+    const barModal = document.getElementById('mvProgressBarModal');
+    const pctModal = document.getElementById('mvPercentModal');
+    const donorsModal = document.getElementById('mvDonorsModal');
+
+    if (collectedModal) collectedModal.textContent = formatINR(collected);
+    if (barModal) setTimeout(() => barModal.style.width = pct + '%', 300);
+    if (pctModal) pctModal.textContent = pct;
+    if (donorsModal) donorsModal.textContent = donors;
+  }
+
+  function fetchProgress() {
+    fetch(url)
+      .then(r => r.text())
+      .then(text => {
+        // Google Sheets wraps JSON in /*O_o*/ google.visualization.Query.setResponse(...)
+        const json = JSON.parse(text.substring(47).slice(0, -2));
+        const rows = json.table.rows || [];
+
+        let total = 0;
+        let donors = 0;
+
+        rows.forEach(row => {
+          if (!row.c) return;
+          const fundType = (row.c[7] && row.c[7].v) ? row.c[7].v.toString().toLowerCase() : '';
+          const message = (row.c[8] && row.c[8].v) ? row.c[8].v.toString().toLowerCase() : '';
+          const amount = (row.c[6] && row.c[6].v) ? parseFloat(row.c[6].v) : 0;
+
+          // Check if this is a mortuary van donation by fund_type or message
+          if (fundType === 'Mortuary Van Fund' || fundType.includes('mortuary') || message.includes('mortuary van fund')) {
+            total += amount;
+            donors++;
+          }
+        });
+
+        updateProgress(total, donors);
+      })
+      .catch(() => {
+        // If fetch fails, show 0
+        updateProgress(0, 0);
+      });
+  }
+
+  // Fetch on page load
+  document.addEventListener('DOMContentLoaded', fetchProgress);
+
+  // Refresh every 5 minutes
+  setInterval(fetchProgress, 5 * 60 * 1000);
 })();
 
 // ===== Event banner & event-card auto-status (date-driven) =====
@@ -3991,7 +4215,7 @@ document.getElementById('donationForm')?.addEventListener('submit', function (e)
   const declaration = document.getElementById('df_declaration').checked;
 
   if (!name || !email) { alert('Please fill in your name and email.'); return; }
-  if (!amount || amount < 100) { alert('Minimum donation amount is ₹100.'); return; }
+  if (!amount || amount < 101) { alert('Minimum donation amount is ₹101.'); return; }
   if (!declaration) { alert('Please accept the declaration before proceeding.'); return; }
 
   const options = {
@@ -4004,6 +4228,7 @@ document.getElementById('donationForm')?.addEventListener('submit', function (e)
     prefill: { name, email, contact: mobile },
     notes: {
       payment_type: 'donation',
+      fund_type: 'Regular Donation',
       donor_name: name,
       mobile: mobile,
       email: email,
@@ -4267,6 +4492,120 @@ function setLanguage(lang) {
   background:#1B7340; color:#fff; padding:8px 18px; border-radius:100px; font-size:0.75rem;
   z-index:500; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
   🤖 स्वचालित अनुवाद — त्रुटियाँ संभव हैं
+</div>
+
+
+<!-- ====== MORTUARY VAN FUND MODAL ====== -->
+<div class="modal-overlay" id="mortuaryModal">
+  <div class="modal-box modal-donation">
+    <button class="modal-close" id="mortuaryModalClose">&times;</button>
+
+    <div class="donation-modal-header" style="background:linear-gradient(135deg,#1B3A7A 0%, #2451B7 100%);">
+      <div class="donation-modal-icon">🚐</div>
+      <h2 class="donation-modal-title">Mortuary Van Fund</h2>
+      <p class="donation-modal-subtitle">Help RNEx Trust acquire a community mortuary van for Raj Nagar Extension. Every contribution brings us closer to serving families in their most difficult moments.</p>
+
+      <!-- Progress in modal -->
+      <div style="margin-top:12px;background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 14px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+          <span style="font-size:0.78rem;color:#fff;font-weight:700;">₹<span id="mvCollectedModal">...</span> raised</span>
+          <span style="font-size:0.72rem;color:rgba(255,255,255,0.8);">Goal: ₹20,00,000</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.2);border-radius:100px;height:8px;overflow:hidden;">
+          <div id="mvProgressBarModal" style="height:100%;background:#fff;border-radius:100px;width:0%;transition:width 1s ease;"></div>
+        </div>
+        <p style="font-size:0.7rem;color:rgba(255,255,255,0.8);margin:4px 0 0;text-align:center;">
+          <span id="mvPercentModal">0</span>% complete · <span id="mvDonorsModal">...</span> donors
+        </p>
+      </div>
+    </div>
+
+    <form id="mortuaryForm" novalidate>
+
+      <div class="donation-amount-section">
+        <p class="donation-field-label">Select Amount</p>
+        <div class="donation-presets-grid">
+          <button type="button" class="donation-preset" onclick="setMortuaryAmount(1000)">
+            <span class="preset-amount">₹1,000</span>
+          </button>
+          <button type="button" class="donation-preset" onclick="setMortuaryAmount(2100)">
+            <span class="preset-amount">₹2,100</span>
+            <span class="preset-tag">Popular</span>
+          </button>
+          <button type="button" class="donation-preset" onclick="setMortuaryAmount(5000)">
+            <span class="preset-amount">₹5,000</span>
+          </button>
+          <button type="button" class="donation-preset" onclick="setMortuaryAmount(11000)">
+            <span class="preset-amount">₹11,000</span>
+            <span class="preset-tag">Generous</span>
+          </button>
+          <button type="button" class="donation-preset" onclick="setMortuaryAmount(21000)">
+            <span class="preset-amount">₹21,000</span>
+          </button>
+          <button type="button" class="donation-preset donation-preset-custom" onclick="document.getElementById('mv_amount').focus()">
+            <span class="preset-amount">Custom</span>
+          </button>
+        </div>
+        <div class="donation-custom-amount">
+          <span class="donation-rupee-symbol">₹</span>
+          <input type="number" id="mv_amount" required min="501" placeholder="Enter amount (min ₹501)" oninput="clearMortuaryPreset()">
+        </div>
+      </div>
+
+      <div class="donation-fields">
+        <div class="donation-field-group">
+          <label class="donation-field-label" for="mv_name">Full Name *</label>
+          <input type="text" id="mv_name" required placeholder="Your full name" class="donation-input">
+        </div>
+        <div class="donation-fields-row">
+          <div class="donation-field-group">
+            <label class="donation-field-label" for="mv_mobile">Mobile</label>
+            <input type="tel" id="mv_mobile" placeholder="10-digit number" class="donation-input">
+          </div>
+          <div class="donation-field-group">
+            <label class="donation-field-label" for="mv_email">Email *</label>
+            <input type="email" id="mv_email" required placeholder="your@email.com" class="donation-input">
+          </div>
+        </div>
+        <div class="donation-field-group">
+          <label class="donation-field-label" for="mv_address">Address</label>
+          <input type="text" id="mv_address" placeholder="Flat no., Building, Society, Area" class="donation-input">
+        </div>
+        <div class="donation-fields-row">
+          <div class="donation-field-group">
+            <label class="donation-field-label" for="mv_pin">Pin Code</label>
+            <input type="text" id="mv_pin" placeholder="201017" maxlength="6" class="donation-input">
+          </div>
+          <div class="donation-field-group">
+            <label class="donation-field-label" for="mv_city">City / District</label>
+            <input type="text" id="mv_city" placeholder="Ghaziabad" class="donation-input">
+          </div>
+        </div>
+        <div class="donation-field-group">
+          <label class="donation-field-label" for="mv_message">Message <span style="font-weight:400;color:var(--ink-soft)">(optional)</span></label>
+          <textarea id="mv_message" rows="2" placeholder="What inspired you to support this cause?" class="donation-input"></textarea>
+        </div>
+      </div>
+
+      <div class="donation-80g-note">
+        <span class="donation-80g-icon">ℹ️</span>
+        <span>80G registration in progress. Donations are not tax-deductible at present.</span>
+      </div>
+
+      <label class="donation-declaration">
+        <input type="checkbox" id="mv_declaration" required>
+        <span>I confirm this is a voluntary donation to RNEx Trust (Regd.) for the Mortuary Van Fund.</span>
+      </label>
+
+      <button type="submit" class="donation-submit-btn" style="background:linear-gradient(135deg,#1B3A7A,#2451B7);">
+        <span>Donate to Mortuary Van Fund</span>
+        <span class="donation-submit-lock">🔒</span>
+      </button>
+
+      <p class="donation-powered">Secured by Razorpay · UPI · Cards · Net Banking</p>
+
+    </form>
+  </div>
 </div>
 
 </body>
