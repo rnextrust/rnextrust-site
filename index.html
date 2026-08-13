@@ -3236,20 +3236,7 @@ iframe.goog-te-menu-frame { display: none !important; }
       <a href="#donate">Donate</a>
       <a href="#contact">Contact</a>
     </div>
-    <div class="footer-visitor">
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:0.8rem;">👁️</span>
-          <span style="font-size:0.72rem;color:#aaa;letter-spacing:0.05em;text-transform:uppercase;">Total Visitors</span>
-          <span id="visitorCount" style="font-size:0.85rem;font-weight:700;color:#C9CCCA;font-family:monospace;min-width:60px;display:inline-block;">...</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:0.8rem;">🌐</span>
-          <span style="font-size:0.72rem;color:#aaa;letter-spacing:0.05em;text-transform:uppercase;">Today</span>
-          <span id="todayCount" style="font-size:0.85rem;font-weight:700;color:#C9CCCA;font-family:monospace;min-width:30px;display:inline-block;">...</span>
-        </div>
-      </div>
-    </div>
+
     <div class="footer-legal">
       <h4>Legal</h4>
       <a href="#" data-modal="privacyModal">Privacy Policy</a>
@@ -3800,20 +3787,31 @@ document.getElementById('mortuaryModal')?.addEventListener('click', function(e) 
 // ===== Visitor Counter =====
 (function() {
   // Use api.counterapi.dev — free, no signup, working 2026
-  fetch('https://api.counterapi.dev/v1/rnextrust/visitors/up')
-    .then(r => r.json())
-    .then(data => {
-      const el = document.getElementById('visitorCount');
-      if (el && data.count) {
-        // Add base offset so it doesn't show 1 on first visit
-        const displayCount = data.count + 1000;
-        el.textContent = displayCount.toLocaleString('en-IN');
-      }
-    })
-    .catch(() => {
-      const el = document.getElementById('visitorCount');
-      if (el) el.textContent = '1,000+';
-    });
+  // Try primary API first, then fallback
+  const visitorEl = document.getElementById('visitorCount');
+
+  fetch('https://api.counterapi.dev/v1/rnextrust-trust/pageviews/up', {
+    method: 'GET',
+    mode: 'cors'
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (visitorEl && (data.count || data.value)) {
+      const count = (data.count || data.value || 0) + 1000;
+      visitorEl.textContent = count.toLocaleString('en-IN');
+    } else if (visitorEl) {
+      visitorEl.textContent = '1,000+';
+    }
+  })
+  .catch(() => {
+    // Fallback: use localStorage to estimate
+    if (visitorEl) {
+      const stored = parseInt(localStorage.getItem('rnex_total_est') || '1000');
+      const newCount = stored + 1;
+      localStorage.setItem('rnex_total_est', newCount.toString());
+      visitorEl.textContent = newCount.toLocaleString('en-IN');
+    }
+  });
 
   // Today's count using localStorage
   const today = new Date().toDateString();
@@ -4865,6 +4863,45 @@ function setLanguage(lang) {
       <p class="donation-powered">Secured by Razorpay · UPI · Cards · Net Banking</p>
 
     </form>
+  </div>
+</div>
+
+
+<!-- ====== VISITOR COUNTER BAR ====== -->
+<div style="
+  background: linear-gradient(135deg, #1B7340 0%, #1E9B3A 50%, #FF6B1A 100%);
+  background-size: 200% 200%;
+  animation: saffron-pulse 6s ease-in-out infinite;
+  padding: 10px 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:1.1rem;">👁️</span>
+    <div>
+      <div style="font-size:0.62rem;color:rgba(255,255,255,0.8);letter-spacing:0.1em;text-transform:uppercase;font-weight:600;">Total Visitors</div>
+      <div id="visitorCount" style="font-size:1rem;font-weight:800;color:#fff;font-family:monospace;letter-spacing:0.05em;">Loading...</div>
+    </div>
+  </div>
+  <div style="width:1px;height:32px;background:rgba(255,255,255,0.3);"></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:1.1rem;">📅</span>
+    <div>
+      <div style="font-size:0.62rem;color:rgba(255,255,255,0.8);letter-spacing:0.1em;text-transform:uppercase;font-weight:600;">Today's Visits</div>
+      <div id="todayCount" style="font-size:1rem;font-weight:800;color:#fff;font-family:monospace;letter-spacing:0.05em;">...</div>
+    </div>
+  </div>
+  <div style="width:1px;height:32px;background:rgba(255,255,255,0.3);"></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:1.1rem;">🌐</span>
+    <div>
+      <div style="font-size:0.62rem;color:rgba(255,255,255,0.8);letter-spacing:0.1em;text-transform:uppercase;font-weight:600;">Website</div>
+      <div style="font-size:0.82rem;font-weight:700;color:#fff;">www.rnextrust.com</div>
+    </div>
   </div>
 </div>
 
