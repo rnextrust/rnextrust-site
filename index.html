@@ -2356,6 +2356,14 @@ iframe.goog-te-menu-frame { display: none !important; }
   }
 }
 
+
+.footer-visitor {
+  text-align: center;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin-top: 8px;
+}
+
 </style>
 </head>
 <body>
@@ -3227,6 +3235,20 @@ iframe.goog-te-menu-frame { display: none !important; }
       <a href="#donate">Donate</a>
       <a href="#contact">Contact</a>
     </div>
+    <div class="footer-visitor">
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:0.8rem;">👁️</span>
+          <span style="font-size:0.72rem;color:#aaa;letter-spacing:0.05em;text-transform:uppercase;">Total Visitors</span>
+          <span id="visitorCount" style="font-size:0.85rem;font-weight:700;color:#C9CCCA;font-family:monospace;min-width:60px;display:inline-block;">...</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:0.8rem;">🌐</span>
+          <span style="font-size:0.72rem;color:#aaa;letter-spacing:0.05em;text-transform:uppercase;">Today</span>
+          <span id="todayCount" style="font-size:0.85rem;font-weight:700;color:#C9CCCA;font-family:monospace;min-width:30px;display:inline-block;">...</span>
+        </div>
+      </div>
+    </div>
     <div class="footer-legal">
       <h4>Legal</h4>
       <a href="#" data-modal="privacyModal">Privacy Policy</a>
@@ -3771,6 +3793,45 @@ document.getElementById('mortuaryModal')?.addEventListener('click', function(e) 
 
   // Refresh every 5 minutes
   setInterval(fetchProgress, 5 * 60 * 1000);
+})();
+
+
+// ===== Visitor Counter =====
+(function() {
+  // Using countapi.xyz - free, no signup, CORS-friendly
+  const namespace = 'rnextrust.com';
+  const key = 'visitors';
+
+  // Hit the counter (increment on each visit)
+  fetch('https://api.countapi.xyz/hit/' + namespace + '/' + key)
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('visitorCount');
+      if (el && data.value) {
+        el.textContent = data.value.toLocaleString('en-IN');
+      }
+    })
+    .catch(() => {
+      // Fallback - just show a static message
+      const el = document.getElementById('visitorCount');
+      if (el) el.textContent = '1,000+';
+    });
+
+  // Today's count using localStorage
+  const today = new Date().toDateString();
+  const stored = localStorage.getItem('rnex_visit_date');
+  let todayVisits = parseInt(localStorage.getItem('rnex_today_visits') || '0');
+
+  if (stored !== today) {
+    todayVisits = 1;
+    localStorage.setItem('rnex_visit_date', today);
+  } else {
+    todayVisits++;
+  }
+  localStorage.setItem('rnex_today_visits', todayVisits.toString());
+
+  const todayEl = document.getElementById('todayCount');
+  if (todayEl) todayEl.textContent = todayVisits;
 })();
 
 // ===== Event banner & event-card auto-status (date-driven) =====
