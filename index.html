@@ -3132,18 +3132,56 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   function renderMembers(list) {
     var track = document.getElementById('lifetimeTrack');
     if (!track) return;
+    var wrap = track.parentElement; // .lifetime-marquee-wrap
     var members = (list && list.length) ? list : FALLBACK_MEMBERS;
+    var shuffled = shuffle(members);
+
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      // No animation, so no duplication needed — just the real members,
+      // once each, wrapped as a static grid.
+      track.innerHTML = shuffled.map(cardHTML).join('');
+      if (wrap) wrap.style.maxWidth = '';
+      return;
+    }
 
     // Random order every page load. Only the real members are shown (no
     // artificial repeats) — duplicated exactly once so the CSS animation
     // can loop seamlessly (0 -> -50%, then jumps back unnoticed since the
     // second half is an identical copy of the first half).
-    var shuffled = shuffle(members);
     var loopList = shuffled.concat(shuffled);
     track.innerHTML = loopList.map(cardHTML).join('');
 
     var seconds = Math.max(14, shuffled.length * 7);
     track.style.animationDuration = seconds + 's';
+
+    // Cap how much of the row is visible at once to roughly the number of
+    // REAL members (up to 4), so the original and its duplicate are never
+    // both on screen together — with few members, a wide section used to
+    // fit the whole doubled loop at once, making it look like a static
+    // repeated grid rather than a marquee. Measured from the actual
+    // rendered card so it adapts to any screen size / breakpoint.
+    if (wrap) {
+      var sizeMarquee = function () {
+        var firstCard = track.querySelector('.lifetime-card');
+        if (!firstCard) return;
+        var gap = parseFloat(getComputedStyle(track).gap) || 0;
+        var cardW = firstCard.getBoundingClientRect().width;
+        if (!cardW) return;
+        var visibleCount = Math.min(shuffled.length, 4);
+        var maxWidth = Math.round(visibleCount * cardW + (visibleCount - 1) * gap);
+        wrap.style.maxWidth = maxWidth + 'px';
+        wrap.style.marginLeft = 'auto';
+        wrap.style.marginRight = 'auto';
+      };
+      requestAnimationFrame(sizeMarquee);
+      var resizeTimer;
+      window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(sizeMarquee, 150);
+      });
+    }
   }
 
   function loadLiveMitraMembers() {
