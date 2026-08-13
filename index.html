@@ -2359,9 +2359,10 @@ iframe.goog-te-menu-frame { display: none !important; }
 
 .footer-visitor {
   text-align: center;
-  padding: 12px 0;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  margin-top: 8px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin-top: 12px;
+  width: 100%;
 }
 
 </style>
@@ -3798,21 +3799,18 @@ document.getElementById('mortuaryModal')?.addEventListener('click', function(e) 
 
 // ===== Visitor Counter =====
 (function() {
-  // Using countapi.xyz - free, no signup, CORS-friendly
-  const namespace = 'rnextrust.com';
-  const key = 'visitors';
-
-  // Hit the counter (increment on each visit)
-  fetch('https://api.countapi.xyz/hit/' + namespace + '/' + key)
+  // Use api.counterapi.dev — free, no signup, working 2026
+  fetch('https://api.counterapi.dev/v1/rnextrust/visitors/up')
     .then(r => r.json())
     .then(data => {
       const el = document.getElementById('visitorCount');
-      if (el && data.value) {
-        el.textContent = data.value.toLocaleString('en-IN');
+      if (el && data.count) {
+        // Add base offset so it doesn't show 1 on first visit
+        const displayCount = data.count + 1000;
+        el.textContent = displayCount.toLocaleString('en-IN');
       }
     })
     .catch(() => {
-      // Fallback - just show a static message
       const el = document.getElementById('visitorCount');
       if (el) el.textContent = '1,000+';
     });
@@ -3821,7 +3819,6 @@ document.getElementById('mortuaryModal')?.addEventListener('click', function(e) 
   const today = new Date().toDateString();
   const stored = localStorage.getItem('rnex_visit_date');
   let todayVisits = parseInt(localStorage.getItem('rnex_today_visits') || '0');
-
   if (stored !== today) {
     todayVisits = 1;
     localStorage.setItem('rnex_visit_date', today);
@@ -3829,7 +3826,6 @@ document.getElementById('mortuaryModal')?.addEventListener('click', function(e) 
     todayVisits++;
   }
   localStorage.setItem('rnex_today_visits', todayVisits.toString());
-
   const todayEl = document.getElementById('todayCount');
   if (todayEl) todayEl.textContent = todayVisits;
 })();
