@@ -4427,12 +4427,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         rows.forEach(row => {
           if (!row.c) return;
-          const fundType = (row.c[7] && row.c[7].v) ? row.c[7].v.toString().toLowerCase() : '';
-          const message = (row.c[8] && row.c[8].v) ? row.c[8].v.toString().toLowerCase() : '';
-          const amount = (row.c[6] && row.c[6].v) ? parseFloat(row.c[6].v) : 0;
+          // Column layout, as actually written by processDonationPayment's
+          // appendRow (fixed — was reading Address/Pincode/City by mistake,
+          // which never matched "mortuary", so donations never counted):
+          // 0 Donation ID, 1 Date, 2 Payment ID, 3 Donor Name, 4 Mobile,
+          // 5 Email, 6 Address, 7 Pincode, 8 City, 9 Fund Type, 10 Amount,
+          // 11 Message, 12 Invoice Number, 13 Status.
+          const fundType = (row.c[9] && row.c[9].v) ? row.c[9].v.toString().toLowerCase() : '';
+          const message = (row.c[11] && row.c[11].v) ? row.c[11].v.toString().toLowerCase() : '';
+          const amount = (row.c[10] && row.c[10].v) ? parseFloat(row.c[10].v) : 0;
 
           // Check if this is a mortuary van donation by fund_type or message
-          if (fundType === 'Mortuary Van Fund' || fundType.includes('mortuary') || message.includes('mortuary van fund')) {
+          if (fundType === 'mortuary van fund' || fundType.includes('mortuary') || message.includes('mortuary van fund')) {
             total += amount;
             donors++;
           }
