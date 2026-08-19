@@ -625,7 +625,7 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   display: none;
   align-items: flex-start;
   justify-content: center;
-  z-index: 200;
+  z-index: 300; /* must stay above .cta-strip (201) and .site-header (200) so the close button is never hidden underneath them */
   padding: 16px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -5020,6 +5020,51 @@ function setLanguage(lang) {
     btn.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.15)'; });
     btn.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
   });
+})();
+</script>
+
+<!-- ====== Keep a gap between the frozen top strip/header and any open popup ====== -->
+<script>
+(function() {
+  var GAP = 14; // breathing room below the frozen strip + nav, in px
+
+  function frozenHeight() {
+    var strip = document.getElementById('ctaStrip');
+    var header = document.querySelector('.site-header');
+    var h = 0;
+    if (strip) h += strip.offsetHeight;
+    if (header) h += header.offsetHeight;
+    return h;
+  }
+
+  function applyGap(overlay) {
+    if (!overlay || !overlay.classList.contains('open')) return;
+    overlay.style.setProperty('padding-top', (frozenHeight() + GAP) + 'px', 'important');
+  }
+
+  function clearGap(overlay) {
+    if (overlay) overlay.style.removeProperty('padding-top');
+  }
+
+  function refreshOpenOverlays() {
+    document.querySelectorAll('.modal-overlay.open').forEach(applyGap);
+  }
+
+  // Watch every modal for its 'open' class being toggled, wherever that happens in the code
+  var observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      var el = m.target;
+      if (!el.classList || !el.classList.contains('modal-overlay')) return;
+      if (el.classList.contains('open')) applyGap(el);
+      else clearGap(el);
+    });
+  });
+  document.querySelectorAll('.modal-overlay').forEach(function(el) {
+    observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
+
+  window.addEventListener('resize', refreshOpenOverlays);
+  window.addEventListener('orientationchange', refreshOpenOverlays);
 })();
 </script>
 
