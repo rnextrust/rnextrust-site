@@ -2683,11 +2683,11 @@ iframe.goog-te-menu-frame { display: none !important; }
       <a href="#membership" class="cta-strip-btn cta-strip-btn-member">
         🤝 <span class="cta-btn-text">Membership</span>
       </a>
-      <a href="#donate-for-mortuary-van" class="cta-strip-btn cta-strip-btn-van cta-btn-full"
+      <a href="#donate-for-mortuary-van" class="cta-strip-btn cta-strip-btn-van"
          onclick="setTimeout(()=>document.getElementById('mortuaryModal').classList.add('open'),400)">
-        🚐 <span class="cta-btn-text">Donate for Mortuary Van</span>
+        🚐 <span class="cta-btn-text">Mortuary Van</span>
       </a>
-      <a href="#donation-wall" class="cta-strip-btn cta-strip-btn-donors cta-btn-full">
+      <a href="#donation-wall" class="cta-strip-btn cta-strip-btn-donors">
         🙌 <span class="cta-btn-text">Donors</span>
       </a>
     </div>
@@ -3945,7 +3945,8 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       <button type="button" class="dw-tab" data-range="yearly"><span class="dw-tab-main">Yearly</span><span class="dw-tab-sub" data-sub="yearly"></span></button>
     </div>
 
-    <div class="donation-wall-table-wrap">
+    <p class="donation-wall-empty" id="donationWallLoading">Loading recent donations&hellip;</p>
+    <div class="donation-wall-table-wrap" id="donationWallTableWrap" style="display:none;">
       <table class="donation-wall-table">
         <thead>
           <tr><th>Date</th><th>Name</th><th>Donated For</th><th>Amount</th></tr>
@@ -3954,9 +3955,13 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       </table>
     </div>
     <p class="donation-wall-empty" id="donationWallEmpty" style="display:none;">No donations found for this period yet.</p>
+    <p class="donation-wall-empty" id="donationWallError" style="display:none;">
+      Couldn&rsquo;t load donations right now &mdash; this can happen on a slow connection.
+      <button type="button" class="link-arrow" id="donationWallRetry" style="background:none;border:none;cursor:pointer;padding:0;">Try again &rarr;</button>
+    </p>
 
     <div class="donation-wall-actions">
-      <button type="button" class="btn btn-ghost" id="donationWallViewMore">View More</button>
+      <button type="button" class="btn btn-ghost" id="donationWallViewMore" style="display:none;">View More</button>
     </div>
   </div>
 </section>
@@ -3970,7 +3975,11 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   var els = {
     tabs: document.getElementById('donationWallTabs'),
     body: document.getElementById('donationWallBody'),
+    tableWrap: document.getElementById('donationWallTableWrap'),
+    loading: document.getElementById('donationWallLoading'),
     empty: document.getElementById('donationWallEmpty'),
+    error: document.getElementById('donationWallError'),
+    retry: document.getElementById('donationWallRetry'),
     viewMore: document.getElementById('donationWallViewMore')
   };
 
@@ -4084,16 +4093,28 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   }
 
   function render() {
+    els.loading.style.display = 'none';
+    els.error.style.display = 'none';
     var list = filteredList();
     var slice = list.slice(0, visibleCount);
     if (!slice.length) {
+      els.tableWrap.style.display = 'none';
       els.body.innerHTML = '';
       els.empty.style.display = '';
     } else {
       els.empty.style.display = 'none';
+      els.tableWrap.style.display = '';
       els.body.innerHTML = slice.map(rowHTML).join('');
     }
     els.viewMore.style.display = (visibleCount < list.length) ? '' : 'none';
+  }
+
+  function showLoadFailure() {
+    els.loading.style.display = 'none';
+    els.tableWrap.style.display = 'none';
+    els.empty.style.display = 'none';
+    els.viewMore.style.display = 'none';
+    els.error.style.display = '';
   }
 
   els.tabs.addEventListener('click', function (ev) {
@@ -4112,11 +4133,28 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     render();
   });
 
-  function loadDonationWall() {
+  // Google Apps Script can take a few seconds to cold-start, and on a
+  // slow mobile connection the round trip can easily run past a short
+  // timeout — which used to show a false "no donations" empty state
+  // instead of what was really just a slow/failed load. This now: (1)
+  // gives it a generous 15s per attempt, (2) retries once automatically
+  // before giving up, (3) shows a distinct "couldn't load" message with
+  // a manual Try Again button rather than ever claiming zero donations
+  // when the real answer is "the fetch didn't finish in time".
+  var TIMEOUT_MS = 15000;
+  var MAX_ATTEMPTS = 2;
+
+  function loadDonationWall(attempt) {
+    attempt = attempt || 1;
+    els.loading.style.display = '';
+    els.error.style.display = 'none';
+    els.tableWrap.style.display = 'none';
+    els.empty.style.display = 'none';
+
     var settled = false;
     var callbackName = 'donationWallCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
     var script = document.createElement('script');
-    var timeoutId = setTimeout(function () { finish(null); }, 6000);
+    var timeoutId = setTimeout(function () { finish(null); }, TIMEOUT_MS);
 
     function finish(data) {
       if (settled) return;
@@ -4124,7 +4162,16 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       clearTimeout(timeoutId);
       delete window[callbackName];
       if (script.parentNode) script.parentNode.removeChild(script);
-      ALL_DONATIONS = (data && data.donations) ? data.donations : [];
+
+      if (!data) {
+        if (attempt < MAX_ATTEMPTS) {
+          loadDonationWall(attempt + 1);
+        } else {
+          showLoadFailure();
+        }
+        return;
+      }
+      ALL_DONATIONS = data.donations || [];
       render();
     }
 
@@ -4135,10 +4182,14 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     document.body.appendChild(script);
   }
 
+  if (els.retry) {
+    els.retry.addEventListener('click', function () { loadDonationWall(1); });
+  }
+
   fillTabSubLabels();
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadDonationWall);
+    document.addEventListener('DOMContentLoaded', function () { loadDonationWall(); });
   } else {
     loadDonationWall();
   }
