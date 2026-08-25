@@ -1072,6 +1072,118 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 }
 
 /* ============================================
+   Recent Donations Wall (added 2026-08-25)
+   ============================================ */
+.donation-wall-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto 36px;
+}
+.dw-tab {
+  padding: 9px 20px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-soft);
+  background: var(--paper-card);
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.88rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.dw-tab:hover { border-color: var(--green-deep); color: var(--green-deep); }
+.dw-tab.active {
+  background: var(--green-deep);
+  border-color: var(--green-deep);
+  color: #fff;
+}
+.donation-wall-table-wrap {
+  background: var(--paper-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  max-width: 880px;
+  margin: 0 auto;
+  overflow-x: auto;
+}
+.donation-wall-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.donation-wall-table th {
+  text-align: left;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--green-deep);
+  background: var(--green-tint);
+  padding: 14px 22px;
+  white-space: nowrap;
+}
+.donation-wall-table th:last-child, .donation-wall-table td:last-child { text-align: right; }
+.donation-wall-table td {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 0.94rem;
+  vertical-align: middle;
+}
+.donation-wall-table tbody tr:hover { background: var(--green-tint); }
+.dw-fund-pill {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dw-fund-regular { background: var(--green-tint); color: var(--green-deep); }
+.dw-fund-mortuary { background: #FBEAE0; color: var(--terracotta); }
+.dw-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.donation-wall-empty {
+  text-align: center;
+  color: var(--ink-soft);
+  font-style: italic;
+  padding: 32px 20px;
+}
+.donation-wall-actions {
+  text-align: center;
+  margin-top: 28px;
+}
+@media (max-width: 700px) {
+  .donation-wall-table thead { display: none; }
+  .donation-wall-table, .donation-wall-table tbody, .donation-wall-table tr, .donation-wall-table td { display: block; width: 100%; }
+  .donation-wall-table tr {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .donation-wall-table tbody tr:first-child { border-top: none; }
+  .donation-wall-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+    border-top: none;
+    font-size: 0.92rem;
+  }
+  .donation-wall-table td::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .donation-wall-table td:last-child { text-align: left; }
+}
+
+/* ============================================
    Footer Social Icons
    ============================================ */
 .social-icons {
@@ -3788,6 +3900,174 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
 
   </div>
 </section>
+
+<!-- ====== RECENT DONATIONS (added 2026-08-25) ======
+     AUTOMATION: fetches live data from the Apps Script backend
+     (action=donation_wall, JSONP — same cross-origin trick used by the
+     Lifetime Members gallery above) so every new donation appears here
+     automatically. No editing of this file required. -->
+<section class="section" id="donation-wall">
+  <div class="section-inner">
+    <p class="eyebrow center">Transparency</p>
+    <h2 class="center">Recent Donations</h2>
+    <p class="section-lede center">Every contribution moves our mission forward. Here's a live look at recent support from our community.</p>
+
+    <div class="donation-wall-tabs" id="donationWallTabs">
+      <button type="button" class="dw-tab active" data-range="all">All</button>
+      <button type="button" class="dw-tab" data-range="weekly">Weekly</button>
+      <button type="button" class="dw-tab" data-range="monthly">Monthly</button>
+      <button type="button" class="dw-tab" data-range="quarterly">Quarterly</button>
+      <button type="button" class="dw-tab" data-range="yearly">Yearly</button>
+    </div>
+
+    <div class="donation-wall-table-wrap">
+      <table class="donation-wall-table">
+        <thead>
+          <tr><th>Date</th><th>Name</th><th>Donated For</th><th>Amount</th></tr>
+        </thead>
+        <tbody id="donationWallBody"></tbody>
+      </table>
+    </div>
+    <p class="donation-wall-empty" id="donationWallEmpty" style="display:none;">No donations found for this period yet.</p>
+
+    <div class="donation-wall-actions">
+      <button type="button" class="btn btn-ghost" id="donationWallViewMore">View More</button>
+    </div>
+  </div>
+</section>
+<script>
+(function () {
+  var ALL_DONATIONS = [];
+  var currentRange = 'all';
+  var visibleCount = 20;
+  var PAGE_SIZE = 20;
+
+  var els = {
+    tabs: document.getElementById('donationWallTabs'),
+    body: document.getElementById('donationWallBody'),
+    empty: document.getElementById('donationWallEmpty'),
+    viewMore: document.getElementById('donationWallViewMore')
+  };
+
+  function escapeHTML(str) {
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  // Sheet dates are stored as 'dd-MM-yyyy' or 'dd-MM-yyyy HH:mm' text.
+  function parseDate(str) {
+    if (!str) return null;
+    var parts = String(str).trim().split(' ');
+    var d = parts[0].split('-');
+    if (d.length !== 3) return null;
+    return new Date(parseInt(d[2], 10), parseInt(d[1], 10) - 1, parseInt(d[0], 10));
+  }
+
+  function formatDisplayDate(str) {
+    var dt = parseDate(str);
+    if (!dt) return escapeHTML(str);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+  }
+
+  function formatAmount(n) {
+    return '₹' + Number(n || 0).toLocaleString('en-IN');
+  }
+
+  function fundLabel(fund) {
+    return (fund === 'Mortuary Van Fund') ? 'Mortuary Van' : 'Regular Donation';
+  }
+
+  function fundClass(fund) {
+    return (fund === 'Mortuary Van Fund') ? 'dw-fund-mortuary' : 'dw-fund-regular';
+  }
+
+  // Rolling windows from today, not calendar boundaries.
+  var RANGE_DAYS = { weekly: 7, monthly: 30, quarterly: 90, yearly: 365 };
+
+  function filteredList() {
+    if (currentRange === 'all') return ALL_DONATIONS;
+    var days = RANGE_DAYS[currentRange];
+    var cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - days);
+    return ALL_DONATIONS.filter(function (d) {
+      var dt = parseDate(d.date);
+      return dt && dt.getTime() >= cutoff.getTime();
+    });
+  }
+
+  function rowHTML(d) {
+    return (
+      '<tr>' +
+        '<td data-label="Date">' + formatDisplayDate(d.date) + '</td>' +
+        '<td data-label="Name">' + escapeHTML(d.name) + '</td>' +
+        '<td data-label="Donated For"><span class="dw-fund-pill ' + fundClass(d.fund) + '">' + fundLabel(d.fund) + '</span></td>' +
+        '<td data-label="Amount"><span class="dw-amount">' + formatAmount(d.amount) + '</span></td>' +
+      '</tr>'
+    );
+  }
+
+  function render() {
+    var list = filteredList();
+    var slice = list.slice(0, visibleCount);
+    if (!slice.length) {
+      els.body.innerHTML = '';
+      els.empty.style.display = '';
+    } else {
+      els.empty.style.display = 'none';
+      els.body.innerHTML = slice.map(rowHTML).join('');
+    }
+    els.viewMore.style.display = (visibleCount < list.length) ? '' : 'none';
+  }
+
+  els.tabs.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.dw-tab');
+    if (!btn) return;
+    var tabs = els.tabs.querySelectorAll('.dw-tab');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+    btn.classList.add('active');
+    currentRange = btn.getAttribute('data-range');
+    visibleCount = PAGE_SIZE;
+    render();
+  });
+
+  els.viewMore.addEventListener('click', function () {
+    visibleCount += PAGE_SIZE;
+    render();
+  });
+
+  function loadDonationWall() {
+    var settled = false;
+    var callbackName = 'donationWallCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    var script = document.createElement('script');
+    var timeoutId = setTimeout(function () { finish(null); }, 6000);
+
+    function finish(data) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      ALL_DONATIONS = (data && data.donations) ? data.donations : [];
+      render();
+    }
+
+    window[callbackName] = finish;
+    script.onerror = function () { finish(null); };
+    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
+    script.src = baseUrl + '?action=donation_wall&callback=' + callbackName;
+    document.body.appendChild(script);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadDonationWall);
+  } else {
+    loadDonationWall();
+  }
+})();
+</script>
 
 <!-- ====== CONTACT ====== -->
 <section class="section section-dark" id="contact">
