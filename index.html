@@ -138,7 +138,7 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
    ============================================ */
 .site-header {
   position: sticky;
-  top: 44px;
+  top: var(--saffron-height, 44px);
   z-index: 200;
   background: rgba(251,250,247,0.92);
   backdrop-filter: blur(8px);
@@ -1082,8 +1082,12 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   margin: 0 auto 36px;
 }
 .dw-tab {
-  padding: 9px 20px;
-  border-radius: 999px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 20px;
+  border-radius: 16px;
   border: 1.5px solid var(--border-soft);
   background: var(--paper-card);
   color: var(--ink-soft);
@@ -1098,6 +1102,14 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   background: var(--green-deep);
   border-color: var(--green-deep);
   color: #fff;
+}
+.dw-tab-main { line-height: 1.2; }
+.dw-tab-sub {
+  font-size: 0.68rem;
+  font-weight: 500;
+  opacity: 0.75;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 .donation-wall-table-wrap {
   background: var(--paper-card);
@@ -2414,6 +2426,16 @@ iframe.goog-te-menu-frame { display: none !important; }
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(27,58,122,0.4);
 }
+.cta-strip-btn-donors {
+  background: #1A1A1A;
+  color: #fff;
+  border: 1.5px solid #3A3A3A;
+}
+.cta-strip-btn-donors:hover {
+  background: #2E2E2E;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+}
 @media (max-width: 600px) {
   .cta-strip-actions { gap: 6px; flex-wrap: wrap; justify-content: center; }
   .cta-strip-btn { padding: 6px 10px; font-size: 0.72rem; }
@@ -2636,7 +2658,7 @@ iframe.goog-te-menu-frame { display: none !important; }
 /* Calculate saffron strip height dynamically */
 @media (max-width: 520px) {
   .site-header {
-    top: 52px !important;
+    top: var(--saffron-height, 52px) !important;
   }
 }
 
@@ -2656,14 +2678,17 @@ iframe.goog-te-menu-frame { display: none !important; }
     <div class="cta-strip-actions">
       <a href="#donate" class="cta-strip-btn cta-strip-btn-donate"
          onclick="setTimeout(()=>document.getElementById('donationModal').classList.add('open'),400)">
-        💛 <span class="cta-btn-text">Donate Now</span>
+        💛 <span class="cta-btn-text">Donate</span>
       </a>
       <a href="#membership" class="cta-strip-btn cta-strip-btn-member">
-        🤝 <span class="cta-btn-text">Become a Member</span>
+        🤝 <span class="cta-btn-text">Membership</span>
       </a>
       <a href="#donate-for-mortuary-van" class="cta-strip-btn cta-strip-btn-van cta-btn-full"
          onclick="setTimeout(()=>document.getElementById('mortuaryModal').classList.add('open'),400)">
         🚐 <span class="cta-btn-text">Donate for Mortuary Van</span>
+      </a>
+      <a href="#donation-wall" class="cta-strip-btn cta-strip-btn-donors cta-btn-full">
+        🙌 <span class="cta-btn-text">Donors</span>
       </a>
     </div>
   </div>
@@ -3913,11 +3938,11 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     <p class="section-lede center">Every contribution moves our mission forward. Here's a live look at recent support from our community.</p>
 
     <div class="donation-wall-tabs" id="donationWallTabs">
-      <button type="button" class="dw-tab active" data-range="all">All</button>
-      <button type="button" class="dw-tab" data-range="weekly">Weekly</button>
-      <button type="button" class="dw-tab" data-range="monthly">Monthly</button>
-      <button type="button" class="dw-tab" data-range="quarterly">Quarterly</button>
-      <button type="button" class="dw-tab" data-range="yearly">Yearly</button>
+      <button type="button" class="dw-tab active" data-range="all"><span class="dw-tab-main">All</span></button>
+      <button type="button" class="dw-tab" data-range="weekly"><span class="dw-tab-main">Weekly</span><span class="dw-tab-sub" data-sub="weekly"></span></button>
+      <button type="button" class="dw-tab" data-range="monthly"><span class="dw-tab-main">Monthly</span><span class="dw-tab-sub" data-sub="monthly"></span></button>
+      <button type="button" class="dw-tab" data-range="quarterly"><span class="dw-tab-main">Quarterly</span><span class="dw-tab-sub" data-sub="quarterly"></span></button>
+      <button type="button" class="dw-tab" data-range="yearly"><span class="dw-tab-main">Yearly</span><span class="dw-tab-sub" data-sub="yearly"></span></button>
     </div>
 
     <div class="donation-wall-table-wrap">
@@ -3983,18 +4008,67 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     return (fund === 'Mortuary Van Fund') ? 'dw-fund-mortuary' : 'dw-fund-regular';
   }
 
-  // Rolling windows from today, not calendar boundaries.
-  var RANGE_DAYS = { weekly: 7, monthly: 30, quarterly: 90, yearly: 365 };
+  // Calendar-based periods, computed fresh from today's date every page
+  // load — so "Weekly/Monthly/Quarterly/Yearly" always resolve to the
+  // CURRENT week/month/quarter/financial-year with no manual updates
+  // ever needed. Quarter and Year follow the Indian financial year
+  // (1 Apr – 31 Mar), matching how the Trust's own accounts are kept.
+  var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function shortDate(d) { return d.getDate() + ' ' + MONTH_NAMES[d.getMonth()]; }
+
+  function fyStartYear(d) { return d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; }
+
+  function computeRanges() {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Weekly: current Mon–Sun week.
+    var dow = today.getDay(); // 0 = Sun .. 6 = Sat
+    var diffToMonday = (dow === 0 ? -6 : 1 - dow);
+    var monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + diffToMonday);
+    var sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6, 23, 59, 59, 999);
+    var weekly = { start: monday, end: sunday, label: shortDate(monday) + ' – ' + shortDate(sunday) + ' ' + sunday.getFullYear() };
+
+    // Monthly: current calendar month.
+    var mStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    var mEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    var monthly = { start: mStart, end: mEnd, label: MONTH_NAMES[today.getMonth()] + ' ' + today.getFullYear() };
+
+    // Quarterly: current Indian-FY quarter (Q1 Apr–Jun ... Q4 Jan–Mar).
+    var sy = fyStartYear(today);
+    var monthsFromFYStart = (today.getMonth() - 3 + 12) % 12;
+    var qIdx = Math.floor(monthsFromFYStart / 3); // 0..3
+    var qStart = new Date(sy, 3 + qIdx * 3, 1);
+    var qEnd = new Date(qStart.getFullYear(), qStart.getMonth() + 3, 0, 23, 59, 59, 999);
+    var fyLabel = sy + '-' + String(sy + 1).slice(-2);
+    var quarterly = { start: qStart, end: qEnd, label: 'Q' + (qIdx + 1) + ' FY' + fyLabel + ' (' + MONTH_NAMES[qStart.getMonth()] + '–' + MONTH_NAMES[qEnd.getMonth()] + ')' };
+
+    // Yearly: current Indian Financial Year (1 Apr – 31 Mar).
+    var yStart = new Date(sy, 3, 1);
+    var yEnd = new Date(sy + 1, 2, 31, 23, 59, 59, 999);
+    var yearly = { start: yStart, end: yEnd, label: 'FY ' + fyLabel };
+
+    return { weekly: weekly, monthly: monthly, quarterly: quarterly, yearly: yearly };
+  }
+
+  var RANGES = computeRanges();
+
+  function fillTabSubLabels() {
+    var subs = els.tabs.querySelectorAll('.dw-tab-sub');
+    for (var i = 0; i < subs.length; i++) {
+      var key = subs[i].getAttribute('data-sub');
+      if (RANGES[key]) subs[i].textContent = RANGES[key].label;
+    }
+  }
 
   function filteredList() {
     if (currentRange === 'all') return ALL_DONATIONS;
-    var days = RANGE_DAYS[currentRange];
-    var cutoff = new Date();
-    cutoff.setHours(0, 0, 0, 0);
-    cutoff.setDate(cutoff.getDate() - days);
+    var range = RANGES[currentRange];
+    if (!range) return ALL_DONATIONS;
     return ALL_DONATIONS.filter(function (d) {
       var dt = parseDate(d.date);
-      return dt && dt.getTime() >= cutoff.getTime();
+      return dt && dt.getTime() >= range.start.getTime() && dt.getTime() <= range.end.getTime();
     });
   }
 
@@ -4060,6 +4134,8 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     script.src = baseUrl + '?action=donation_wall&callback=' + callbackName;
     document.body.appendChild(script);
   }
+
+  fillTabSubLabels();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadDonationWall);
@@ -5939,6 +6015,39 @@ function setLanguage(lang) {
     btn.addEventListener('mouseenter', function() { this.style.transform = 'scale(1.15)'; });
     btn.addEventListener('mouseleave', function() { this.style.transform = 'scale(1)'; });
   });
+})();
+</script>
+
+<!-- ====== Keep the sticky header pinned right below the CTA strip (fix, added
+     2026-08-25): the CSS already had a --saffron-height custom property
+     wired into the header's sticky "top" offset, but nothing ever SET
+     that variable — every .site-header rule fell back to a hardcoded
+     guess (44px / 52px / 56px depending on breakpoint). Whenever the
+     saffron strip is actually taller than the guess (it wraps to 2-3
+     rows on many phones and narrow/zoomed browsers, especially now that
+     it has 4 buttons), the header sticks too high and gets hidden
+     underneath the strip. This measures the strip's REAL height and
+     keeps the variable in sync, so the header is never covered. ====== -->
+<script>
+(function() {
+  var strip = document.getElementById('ctaStrip');
+  if (!strip) return;
+  function syncSaffronHeight() {
+    document.documentElement.style.setProperty('--saffron-height', strip.offsetHeight + 'px');
+  }
+  syncSaffronHeight();
+  if (window.ResizeObserver) {
+    new ResizeObserver(syncSaffronHeight).observe(strip);
+  } else {
+    window.addEventListener('resize', syncSaffronHeight);
+    window.addEventListener('orientationchange', syncSaffronHeight);
+  }
+  // Covers height changes that don't fire a resize event: web fonts
+  // swapping in and reflowing the button text, the event banner
+  // toggling, etc.
+  window.addEventListener('load', syncSaffronHeight);
+  setTimeout(syncSaffronHeight, 500);
+  setTimeout(syncSaffronHeight, 1500);
 })();
 </script>
 
