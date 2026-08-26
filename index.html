@@ -4134,22 +4134,35 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   });
 
   // Google Apps Script can take a few seconds to cold-start, and on a
-  // slow mobile connection the round trip can easily run past a short
-  // timeout — which used to show a false "no donations" empty state
-  // instead of what was really just a slow/failed load. This now: (1)
-  // gives it a generous 15s per attempt, (2) retries once automatically
-  // before giving up, (3) shows a distinct "couldn't load" message with
-  // a manual Try Again button rather than ever claiming zero donations
-  // when the real answer is "the fetch didn't finish in time".
+  // slow connection the round trip can easily run past a short timeout —
+  // which used to show a false "no donations" empty state instead of
+  // what was really just a slow/failed load. On top of that, some
+  // browsers/extensions/network setups (seen in testing: Brave's
+  // built-in Shields on mobile, and later something on a laptop too)
+  // block a dynamically-injected <script src="...script.google.com...">
+  // tag even though the exact same URL loads fine when opened directly —
+  // a classic "third-party script tag" block pattern. So this now tries
+  // a plain fetch() first (a different request shape that a script-src
+  // block often doesn't catch), and only falls back to the old
+  // script-tag JSONP approach — with its own retry — if that fails too.
   var TIMEOUT_MS = 15000;
   var MAX_ATTEMPTS = 2;
 
-  function loadDonationWall(attempt) {
-    attempt = attempt || 1;
+  function showLoadingState() {
     els.loading.style.display = '';
     els.error.style.display = 'none';
     els.tableWrap.style.display = 'none';
     els.empty.style.display = 'none';
+  }
+
+  function onDonationData(data) {
+    ALL_DONATIONS = (data && data.donations) ? data.donations : [];
+    render();
+  }
+
+  function loadDonationWallJsonp(attempt) {
+    attempt = attempt || 1;
+    showLoadingState();
 
     var settled = false;
     var callbackName = 'donationWallCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
@@ -4165,14 +4178,13 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
 
       if (!data) {
         if (attempt < MAX_ATTEMPTS) {
-          loadDonationWall(attempt + 1);
+          loadDonationWallJsonp(attempt + 1);
         } else {
           showLoadFailure();
         }
         return;
       }
-      ALL_DONATIONS = data.donations || [];
-      render();
+      onDonationData(data);
     }
 
     window[callbackName] = finish;
@@ -4182,8 +4194,34 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     document.body.appendChild(script);
   }
 
+  function loadDonationWall() {
+    showLoadingState();
+    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
+
+    if (!window.fetch) {
+      loadDonationWallJsonp(1);
+      return;
+    }
+
+    var controller = window.AbortController ? new AbortController() : null;
+    var timeoutId = controller && setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
+
+    fetch(baseUrl + '?action=donation_wall', controller ? { signal: controller.signal } : {})
+      .then(function (res) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(onDonationData)
+      .catch(function () {
+        // fetch() blocked, timed out, or the response wasn't JSON — fall
+        // back to the script-tag JSONP path (which has its own retries).
+        loadDonationWallJsonp(1);
+      });
+  }
+
   if (els.retry) {
-    els.retry.addEventListener('click', function () { loadDonationWall(1); });
+    els.retry.addEventListener('click', loadDonationWall);
   }
 
   fillTabSubLabels();
