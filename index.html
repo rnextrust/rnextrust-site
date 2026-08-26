@@ -1118,7 +1118,12 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   box-shadow: var(--shadow-card);
   max-width: 880px;
   margin: 0 auto;
-  overflow-x: auto;
+  /* No horizontal scroll: cells wrap (desktop, naturally; mobile, via
+     fixed column widths below) instead of ever needing to overflow. An
+     overflow-x:auto here would also silently force overflow-y to 'auto'
+     per the CSS spec, which breaks position:sticky on the header row
+     below by making this div — not the page — its scroll container. */
+  overflow: visible;
 }
 .donation-wall-table {
   width: 100%;
@@ -1133,6 +1138,11 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   background: var(--green-tint);
   padding: 14px 22px;
   white-space: nowrap;
+  /* Frozen header row: stays visible just below the sticky CTA
+     strip + nav header while scrolling through the donor list. */
+  position: sticky;
+  top: var(--sticky-total-height, 130px);
+  z-index: 2;
 }
 .donation-wall-table th:last-child, .donation-wall-table td:last-child { text-align: right; }
 .donation-wall-table td {
@@ -1157,6 +1167,8 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
+/* Compact date/fund text is mobile-only — see the max-width:700px block. */
+.dw-date-compact, .dw-fund-compact { display: none; }
 .donation-wall-empty {
   text-align: center;
   color: var(--ink-soft);
@@ -1181,16 +1193,34 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   .dw-tab { flex: 0 0 auto; }
 
   /* Donor table: keep the real table (Date/Name/Donated For/Amount all
-     in one row per donor, like desktop) instead of stacking each field
-     on its own line. The wrapper already has overflow-x:auto, so if a
-     row is wider than the screen the user swipes sideways to see the
-     rest — same pattern as the tabs above. */
+     in one row per donor, like desktop) but fit all 4 columns within
+     the screen width — fixed column widths, compact date/fund text,
+     and the Name column allowed to wrap onto a 2nd line for long
+     names — so nothing needs horizontal scrolling on a phone. */
+  .donation-wall-table { table-layout: fixed; }
   .donation-wall-table th,
   .donation-wall-table td {
-    padding: 12px 14px;
-    font-size: 0.86rem;
-    white-space: nowrap;
+    padding: 10px 6px;
+    font-size: 0.74rem;
   }
+  .donation-wall-table th:nth-child(1), .donation-wall-table td:nth-child(1) {
+    width: 19%; white-space: nowrap;
+  }
+  .donation-wall-table th:nth-child(2), .donation-wall-table td:nth-child(2) {
+    width: 31%; white-space: normal; word-break: break-word;
+  }
+  .donation-wall-table th:nth-child(3), .donation-wall-table td:nth-child(3) {
+    width: 27%; white-space: nowrap;
+  }
+  .donation-wall-table th:nth-child(4), .donation-wall-table td:nth-child(4) {
+    width: 23%; white-space: nowrap;
+  }
+
+  .dw-date-full, .dw-fund-full { display: none; }
+  .dw-date-compact, .dw-fund-compact { display: inline; }
+
+  .dw-fund-pill { padding: 2px 8px; font-size: 0.66rem; }
+  .dw-amount { font-size: 0.8rem; }
 }
 
 /* ============================================
@@ -4013,12 +4043,28 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     return dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
   }
 
+  // Compact date (no year) — used on mobile via CSS so the Date column
+  // stays narrow enough for all 4 columns to fit the screen width with
+  // no horizontal scroll needed.
+  function formatDisplayDateCompact(str) {
+    var dt = parseDate(str);
+    if (!dt) return escapeHTML(str);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return dt.getDate() + ' ' + months[dt.getMonth()];
+  }
+
   function formatAmount(n) {
     return '₹' + Number(n || 0).toLocaleString('en-IN');
   }
 
   function fundLabel(fund) {
     return (fund === 'Mortuary Van Fund') ? 'Mortuary Van' : 'Regular Donation';
+  }
+
+  // Compact fund label — shown instead of the full label on mobile,
+  // same reasoning as formatDisplayDateCompact above.
+  function fundLabelCompact(fund) {
+    return (fund === 'Mortuary Van Fund') ? 'Mortuary' : 'Regular';
   }
 
   function fundClass(fund) {
@@ -4092,9 +4138,15 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   function rowHTML(d) {
     return (
       '<tr>' +
-        '<td data-label="Date">' + formatDisplayDate(d.date) + '</td>' +
+        '<td data-label="Date">' +
+          '<span class="dw-date-full">' + formatDisplayDate(d.date) + '</span>' +
+          '<span class="dw-date-compact">' + formatDisplayDateCompact(d.date) + '</span>' +
+        '</td>' +
         '<td data-label="Name">' + escapeHTML(d.name) + '</td>' +
-        '<td data-label="Donated For"><span class="dw-fund-pill ' + fundClass(d.fund) + '">' + fundLabel(d.fund) + '</span></td>' +
+        '<td data-label="Donated For"><span class="dw-fund-pill ' + fundClass(d.fund) + '">' +
+          '<span class="dw-fund-full">' + fundLabel(d.fund) + '</span>' +
+          '<span class="dw-fund-compact">' + fundLabelCompact(d.fund) + '</span>' +
+        '</span></td>' +
         '<td data-label="Amount"><span class="dw-amount">' + formatAmount(d.amount) + '</span></td>' +
       '</tr>'
     );
@@ -6161,13 +6213,22 @@ function setLanguage(lang) {
 <script>
 (function() {
   var strip = document.getElementById('ctaStrip');
+  var header = document.querySelector('.site-header');
   if (!strip) return;
+  // --sticky-total-height (added 2026-08-26) = strip + header combined
+  // height, used by the donation wall's frozen table header row so it
+  // sticks right below both, wherever they currently sit.
   function syncSaffronHeight() {
-    document.documentElement.style.setProperty('--saffron-height', strip.offsetHeight + 'px');
+    var stripH = strip.offsetHeight;
+    document.documentElement.style.setProperty('--saffron-height', stripH + 'px');
+    var headerH = header ? header.offsetHeight : 0;
+    document.documentElement.style.setProperty('--sticky-total-height', (stripH + headerH) + 'px');
   }
   syncSaffronHeight();
   if (window.ResizeObserver) {
-    new ResizeObserver(syncSaffronHeight).observe(strip);
+    var ro = new ResizeObserver(syncSaffronHeight);
+    ro.observe(strip);
+    if (header) ro.observe(header);
   } else {
     window.addEventListener('resize', syncSaffronHeight);
     window.addEventListener('orientationchange', syncSaffronHeight);
