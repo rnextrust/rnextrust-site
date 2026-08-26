@@ -4215,8 +4215,14 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   // a plain fetch() first (a different request shape that a script-src
   // block often doesn't catch), and only falls back to the old
   // script-tag JSONP approach — with its own retry — if that fails too.
-  var TIMEOUT_MS = 15000;
-  var MAX_ATTEMPTS = 2;
+  //
+  // 2026-08-26: even after the blocking bug was fixed, a genuinely slow/
+  // flaky mobile connection could still exhaust the fetch attempt AND
+  // both JSONP retries within 2x15s — raised the timeout and attempt
+  // count so a real (if slow) connection has more room to succeed
+  // before giving up and showing the error state.
+  var TIMEOUT_MS = 20000;
+  var MAX_ATTEMPTS = 3;
 
   function showLoadingState() {
     els.loading.style.display = '';
