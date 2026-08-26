@@ -1168,31 +1168,29 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   margin-top: 28px;
 }
 @media (max-width: 700px) {
-  .donation-wall-table thead { display: none; }
-  .donation-wall-table, .donation-wall-table tbody, .donation-wall-table tr, .donation-wall-table td { display: block; width: 100%; }
-  .donation-wall-table tr {
-    padding: 16px 20px;
-    border-top: 1px solid var(--border-soft);
+  /* Filter tabs: one scrollable row instead of wrapping to 3 rows. */
+  .donation-wall-tabs {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 4px 10px;
+    margin-left: -4px;
+    margin-right: -4px;
   }
-  .donation-wall-table tbody tr:first-child { border-top: none; }
+  .dw-tab { flex: 0 0 auto; }
+
+  /* Donor table: keep the real table (Date/Name/Donated For/Amount all
+     in one row per donor, like desktop) instead of stacking each field
+     on its own line. The wrapper already has overflow-x:auto, so if a
+     row is wider than the screen the user swipes sideways to see the
+     rest — same pattern as the tabs above. */
+  .donation-wall-table th,
   .donation-wall-table td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 4px 0;
-    border-top: none;
-    font-size: 0.92rem;
+    padding: 12px 14px;
+    font-size: 0.86rem;
+    white-space: nowrap;
   }
-  .donation-wall-table td::before {
-    content: attr(data-label);
-    font-size: 0.72rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    font-weight: 600;
-  }
-  .donation-wall-table td:last-child { text-align: left; }
 }
 
 /* ============================================
@@ -2666,6 +2664,16 @@ iframe.goog-te-menu-frame { display: none !important; }
 </head>
 <body>
 
+<!-- ====== STICKY ZONE (added 2026-08-26) ======
+     Wraps the CTA strip + header together with every section through
+     Recent Donations. position:sticky elements can never stick past
+     their own parent's boundary, so this is what makes the strip/header
+     release naturally once the user scrolls past the end of the
+     Donations section — no JS needed, and every section still above
+     Donations (About, Focus, Events, Supporters, Trustees, Membership,
+     Lifetime Members, Get Involved, Donate) keeps the sticky nav exactly
+     as before. Closes right after #donation-wall below. -->
+<div id="stickyZone">
 
 <!-- ====== SAFFRON CTA STRIP ====== -->
 <div class="cta-strip" id="ctaStrip">
@@ -4233,6 +4241,8 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   }
 })();
 </script>
+
+</div><!-- /#stickyZone — CTA strip + header stop sticking from here on -->
 
 <!-- ====== CONTACT ====== -->
 <section class="section section-dark" id="contact">
@@ -6003,30 +6013,61 @@ function setLanguage(lang) {
 // Real, site-wide visitor counter — records each visit via the Apps Script
 // backend (Visits tab on the Google Sheet) instead of a per-browser
 // localStorage count, so the number reflects actual site-wide traffic.
+//
+// 2026-08-26: some mobile browsers (and later a laptop too) were found to
+// block the dynamically-injected <script src="...script.google.com...">
+// JSONP tag this used to rely on exclusively — the exact same symptom hit
+// the donation wall. Fixed the same way: try a plain fetch() first (a
+// different request shape that isn't caught by the same blocking), and
+// only fall back to the old script-tag JSONP mechanism if fetch fails.
 (function() {
   var CACHE_KEY = 'rnex_vc_last_known';
   var el = document.getElementById('visitorCount');
   var cached = parseInt(localStorage.getItem(CACHE_KEY) || '0', 10);
   if (el && cached) el.textContent = cached.toLocaleString('en-IN');
   if (typeof APPS_SCRIPT_URL === 'undefined') return;
-  var cbName = 'rnexVisitCb_' + Date.now();
-  var timeout = setTimeout(function() { delete window[cbName]; }, 10000);
-  window[cbName] = function(data) {
-    clearTimeout(timeout);
-    delete window[cbName];
+  var TIMEOUT_MS = 10000;
+
+  function applyCount(data) {
     if (data && typeof data.count === 'number') {
       if (el) el.textContent = data.count.toLocaleString('en-IN');
       localStorage.setItem(CACHE_KEY, data.count);
     }
-    var script = document.getElementById('visit_jsonp_script');
-    if (script) script.remove();
-  };
-  var params = new URLSearchParams({ action: 'record_visit', callback: cbName });
-  var script = document.createElement('script');
-  script.id = 'visit_jsonp_script';
-  script.src = APPS_SCRIPT_URL + '?' + params.toString();
-  script.onerror = function() { clearTimeout(timeout); delete window[cbName]; };
-  document.body.appendChild(script);
+  }
+
+  function recordVisitJsonp() {
+    var cbName = 'rnexVisitCb_' + Date.now();
+    var timeout = setTimeout(function() { delete window[cbName]; }, TIMEOUT_MS);
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      applyCount(data);
+      var script = document.getElementById('visit_jsonp_script');
+      if (script) script.remove();
+    };
+    var params = new URLSearchParams({ action: 'record_visit', callback: cbName });
+    var script = document.createElement('script');
+    script.id = 'visit_jsonp_script';
+    script.src = APPS_SCRIPT_URL + '?' + params.toString();
+    script.onerror = function() { clearTimeout(timeout); delete window[cbName]; };
+    document.body.appendChild(script);
+  }
+
+  function recordVisit() {
+    if (!window.fetch) { recordVisitJsonp(); return; }
+    var controller = window.AbortController ? new AbortController() : null;
+    var timeoutId = controller && setTimeout(function() { controller.abort(); }, TIMEOUT_MS);
+    fetch(APPS_SCRIPT_URL + '?action=record_visit', controller ? { signal: controller.signal } : {})
+      .then(function(res) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(applyCount)
+      .catch(function() { recordVisitJsonp(); });
+  }
+
+  recordVisit();
 })();
 </script>
 
