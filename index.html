@@ -1186,9 +1186,15 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
     justify-content: flex-start;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 2px 4px 10px;
+    padding: 8px 4px 10px;
     margin-left: -4px;
     margin-right: -4px;
+    /* Frozen too, right below the CTA strip + nav header (2026-08-26) —
+       same stacking approach as the table header row below. */
+    position: sticky;
+    top: var(--sticky-total-height, 130px);
+    z-index: 4;
+    background: var(--paper);
   }
   .dw-tab { flex: 0 0 auto; }
 
@@ -1203,6 +1209,12 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
     padding: 10px 6px;
     font-size: 0.74rem;
   }
+  /* On mobile the filter tabs are ALSO frozen (above), so the table's
+     own header row needs to sit below them too, not just below the
+     CTA strip + nav header. */
+  .donation-wall-table th {
+    top: var(--sticky-total-height-tabs, 180px);
+  }
   .donation-wall-table th:nth-child(1), .donation-wall-table td:nth-child(1) {
     width: 19%; white-space: nowrap;
   }
@@ -1210,10 +1222,19 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
     width: 31%; white-space: normal; word-break: break-word;
   }
   .donation-wall-table th:nth-child(3), .donation-wall-table td:nth-child(3) {
-    width: 27%; white-space: nowrap;
+    width: 27%;
   }
+  /* "Donated For" header text wraps to a 2nd line ("DONATED"/"FOR")
+     instead of getting clipped — the pill value underneath (now just
+     "Mortuary"/"Regular") stays on one line, it fits fine. */
+  .donation-wall-table th:nth-child(3) { white-space: normal; line-height: 1.25; }
+  .donation-wall-table td:nth-child(3) { white-space: nowrap; }
   .donation-wall-table th:nth-child(4), .donation-wall-table td:nth-child(4) {
     width: 23%; white-space: nowrap;
+  }
+  /* Breathing room so the Amount value isn't flush against the edge. */
+  .donation-wall-table th:last-child, .donation-wall-table td:last-child {
+    padding-right: 14px;
   }
 
   .dw-date-full, .dw-fund-full { display: none; }
@@ -2693,17 +2714,6 @@ iframe.goog-te-menu-frame { display: none !important; }
 </style>
 </head>
 <body>
-
-<!-- ====== STICKY ZONE (added 2026-08-26) ======
-     Wraps the CTA strip + header together with every section through
-     Recent Donations. position:sticky elements can never stick past
-     their own parent's boundary, so this is what makes the strip/header
-     release naturally once the user scrolls past the end of the
-     Donations section — no JS needed, and every section still above
-     Donations (About, Focus, Events, Supporters, Trustees, Membership,
-     Lifetime Members, Get Involved, Donate) keeps the sticky nav exactly
-     as before. Closes right after #donation-wall below. -->
-<div id="stickyZone">
 
 <!-- ====== SAFFRON CTA STRIP ====== -->
 <div class="cta-strip" id="ctaStrip">
@@ -4293,8 +4303,6 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   }
 })();
 </script>
-
-</div><!-- /#stickyZone — CTA strip + header stop sticking from here on -->
 
 <!-- ====== CONTACT ====== -->
 <section class="section section-dark" id="contact">
@@ -6214,21 +6222,29 @@ function setLanguage(lang) {
 (function() {
   var strip = document.getElementById('ctaStrip');
   var header = document.querySelector('.site-header');
+  var dwTabs = document.getElementById('donationWallTabs');
   if (!strip) return;
   // --sticky-total-height (added 2026-08-26) = strip + header combined
-  // height, used by the donation wall's frozen table header row so it
+  // height, used by the donation wall's frozen filter-tabs row so it
   // sticks right below both, wherever they currently sit.
+  // --sticky-total-height-tabs (added 2026-08-26) = strip + header +
+  // filter-tabs combined height, used by the table's own frozen header
+  // row so it sticks below all three on mobile (where the tabs are also
+  // frozen — see the max-width:700px block).
   function syncSaffronHeight() {
     var stripH = strip.offsetHeight;
     document.documentElement.style.setProperty('--saffron-height', stripH + 'px');
     var headerH = header ? header.offsetHeight : 0;
     document.documentElement.style.setProperty('--sticky-total-height', (stripH + headerH) + 'px');
+    var tabsH = (dwTabs && getComputedStyle(dwTabs).position === 'sticky') ? dwTabs.offsetHeight : 0;
+    document.documentElement.style.setProperty('--sticky-total-height-tabs', (stripH + headerH + tabsH) + 'px');
   }
   syncSaffronHeight();
   if (window.ResizeObserver) {
     var ro = new ResizeObserver(syncSaffronHeight);
     ro.observe(strip);
     if (header) ro.observe(header);
+    if (dwTabs) ro.observe(dwTabs);
   } else {
     window.addEventListener('resize', syncSaffronHeight);
     window.addEventListener('orientationchange', syncSaffronHeight);
