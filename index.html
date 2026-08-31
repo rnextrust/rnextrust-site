@@ -3039,18 +3039,9 @@ iframe.goog-te-menu-frame { display: none !important; }
             <span class="tier-price-label">Individual</span>
             <span class="tier-price-opts">
               <span class="price-chip">₹100 / month</span>
-              <span class="price-chip">₹1,100 / year</span>
-            </span>
-          </div>
-          <div class="tier-price-row">
-            <span class="tier-price-label">Family</span>
-            <span class="tier-price-opts">
-              <span class="price-chip">₹200 / month</span>
-              <span class="price-chip">₹2,100 / year</span>
             </span>
           </div>
         </div>
-        <p class="tier-note">Family = spouse + minor children. T-Shirt ₹800/person (one-time, optional).</p>
         <ul class="tier-benefits">
           <li>Community events &amp; health camps</li>
           <li>Expert guidance workshops</li>
@@ -3071,12 +3062,6 @@ iframe.goog-te-menu-frame { display: none !important; }
               <span class="price-chip price-chip-mitra">₹11,000 lifetime</span>
             </span>
           </div>
-          <div class="tier-price-row">
-            <span class="tier-price-label">Family</span>
-            <span class="tier-price-opts">
-              <span class="price-chip price-chip-mitra">₹21,000 lifetime</span>
-            </span>
-          </div>
         </div>
         <p class="tier-note">One-time payment. Includes all Sathi benefits + exclusive Mitra privileges.</p>
         <ul class="tier-benefits">
@@ -3091,11 +3076,6 @@ iframe.goog-te-menu-frame { display: none !important; }
       </div>
 
     </div>
-
-    <!-- T-Shirt note -->
-    <p class="membership-tshirt-note">
-      🎽 <strong>RNEx Trust T-Shirt</strong> — ₹800 per person (one-time, any size, adults &amp; children). You can add T-shirts for all family members during registration.
-    </p>
 
   </div>
 </section>
@@ -3684,14 +3664,12 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       <!-- STEP 3 -->
       <div class="mf-step-section" id="mf_step3" style="display:none;">
         <p class="mf-section-label">&#127915; Membership Plan</p>
-        <div class="mf-field">
-          <label class="mf-label">Category *</label>
-          <div class="mf-toggle-row">
-            <button type="button" class="mf-toggle active" id="cat_individual" onclick="setCategory('individual')">&#128100; Individual</button>
-            <button type="button" class="mf-toggle" id="cat_family" onclick="setCategory('family')">&#128106; Family</button>
-          </div>
-          <input type="hidden" id="mf_category" value="individual">
-        </div>
+        <!-- Individual-only as of 2026-08-31 (Family membership discontinued
+             as a purchasable option, per Sanjeev's request) — mf_category
+             stays fixed to 'individual', no toggle UI needed since there is
+             only one choice. See system-conventions.md section 16 for the
+             full history of this change. -->
+        <input type="hidden" id="mf_category" value="individual">
         <div class="mf-field" id="mf_duration_wrap">
           <label class="mf-label">Duration *</label>
           <div class="mf-toggle-row">
@@ -3699,12 +3677,6 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
             <button type="button" class="mf-toggle" id="dur_Yearly" onclick="setDuration('Yearly')">&#128198; Yearly</button>
           </div>
           <input type="hidden" id="mf_duration" value="Monthly">
-        </div>
-        <div id="mf_family_section" style="display:none;">
-          <p class="mf-section-label" style="margin-top:16px;">&#128106; Family Members</p>
-          <p style="font-size:0.82rem;color:var(--ink-soft);margin-bottom:10px;">Add spouse + minor children.</p>
-          <div id="mf_family_list"></div>
-          <button type="button" class="mf-add-family-btn" onclick="addFamilyMember()">+ Add Family Member</button>
         </div>
         <div class="mf-tshirt-section">
           <p class="mf-section-label" style="margin-top:16px;">&#127965; T-Shirt</p>
@@ -4428,7 +4400,7 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       <a href="#supporters">Supporters</a>
       <a href="#trustees">Trustees</a>
       <a href="#membership">Membership</a>
-      <a href="https://www.rnextrust.com/#join-mitra">Lifetime Membership</a>
+      <a href="#join-mitra">Lifetime Membership</a>
       <a href="#donate">Donate</a>
       <a href="#contact">Contact</a>
     </div>
@@ -4609,133 +4581,6 @@ filterPills.forEach(pill => {
 });
 
 
-// ============================================================
-// Multi-step membership form
-// ============================================================
-
-function goToStep(step) {
-  // Validate current step before moving forward
-  const current = getCurrentStep();
-  if (step > current && !validateStep(current)) return;
-
-  // Hide all steps
-  [1,2,3,4].forEach(s => {
-    const el = document.getElementById('mf_step' + s);
-    if (el) el.style.display = 'none';
-    const ind = document.getElementById('step' + s + '_indicator');
-    if (ind) {
-      ind.classList.remove('mf-step-active', 'mf-step-done');
-      if (s < step) ind.classList.add('mf-step-done');
-    }
-  });
-
-  // Show target step
-  const target = document.getElementById('mf_step' + step);
-  if (target) target.style.display = 'block';
-  const ind = document.getElementById('step' + step + '_indicator');
-  if (ind) ind.classList.add('mf-step-active');
-
-  // If step 4, populate confirm box
-  if (step === 4) populateConfirmBox();
-
-  // Scroll modal to top
-  const modalBox = document.querySelector('.modal-membership');
-  if (modalBox) modalBox.scrollTop = 0;
-}
-
-function getCurrentStep() {
-  for (let s = 1; s <= 4; s++) {
-    const el = document.getElementById('mf_step' + s);
-    if (el && el.style.display !== 'none') return s;
-  }
-  return 1;
-}
-
-function validateStep(step) {
-  if (step === 1) {
-    const name = document.getElementById('mf_name').value.trim();
-    const mobile = document.getElementById('mf_mobile').value.trim();
-    const email = document.getElementById('mf_email').value.trim();
-    if (!name) { alert('Please enter your full name.'); return false; }
-    const cleanMobile = mobile.replace(/^0+/, ''); if (!/^\d{10}$/.test(cleanMobile)) { alert('Please enter a valid 10-digit mobile number (with or without leading 0).'); return false; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address.'); return false; }
-  }
-  if (step === 2) {
-    const addr = document.getElementById('mf_address').value.trim();
-    const pin = document.getElementById('mf_pin').value.trim();
-    const dist = document.getElementById('mf_district').value.trim();
-    const state = document.getElementById('mf_state').value.trim();
-    if (!addr || !pin || !dist || !state) { alert('Please fill in all address fields.'); return false; }
-    if (!/^\d{6}$/.test(pin)) { alert('Please enter a valid 6-digit pin code.'); return false; }
-  }
-  return true;
-}
-
-function setCategory(cat) {
-  document.getElementById('mf_category').value = cat;
-  document.querySelectorAll('[id^="cat_"]').forEach(b => b.classList.remove('active'));
-  document.getElementById('cat_' + cat).classList.add('active');
-  const familySection = document.getElementById('mf_family_section');
-  if (familySection) familySection.style.display = cat === 'family' ? 'block' : 'none';
-  updateSummary();
-}
-
-function setDuration(dur) {
-  document.getElementById('mf_duration').value = dur;
-  document.querySelectorAll('[id^="dur_"]').forEach(b => b.classList.remove('active'));
-  const btn = document.getElementById('dur_' + dur);
-  if (btn) btn.classList.add('active');
-  updateSummary();
-}
-
-function selectSize(btn, inputId) {
-  const parent = btn.closest('.mf-size-grid');
-  if (parent) parent.querySelectorAll('.mf-size-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const input = document.getElementById(inputId);
-  if (input) input.value = btn.textContent.trim();
-}
-
-function togglePrimaryTshirt() {
-  const checked = document.getElementById('mf_primary_tshirt').checked;
-  const wrap = document.getElementById('mf_primary_tshirt_size_wrap');
-  if (wrap) wrap.style.display = checked ? 'block' : 'none';
-}
-
-function updatePhotoLabel(input) {
-  const label = document.getElementById('mf_photo_name');
-  const file = input.files[0];
-  if (label) label.textContent = file ? file.name : 'No file chosen';
-  if (file && window.RNExUploadMitraPrepayPhoto) {
-    window.RNExUploadMitraPrepayPhoto(file);
-  }
-}
-
-function populateConfirmBox() {
-  const box = document.getElementById('mf_confirm_details');
-  if (!box) return;
-  const type = document.getElementById('mf_type').value;
-  const name = document.getElementById('mf_name').value;
-  const mobile = document.getElementById('mf_mobile').value;
-  const email = document.getElementById('mf_email').value;
-  const address = document.getElementById('mf_address').value;
-  const pin = document.getElementById('mf_pin').value;
-  const district = document.getElementById('mf_district').value;
-  const state = document.getElementById('mf_state').value;
-  const cat = document.getElementById('mf_category').value;
-  const dur = document.getElementById('mf_duration').value;
-  const { membershipAmt, tshirtCount, total } = updateSummary();
-
-  box.innerHTML = `
-    <div class="mf-confirm-row"><span class="mf-confirm-label">Name</span><span class="mf-confirm-value">${name}</span></div>
-    <div class="mf-confirm-row"><span class="mf-confirm-label">Mobile</span><span class="mf-confirm-value">${mobile}</span></div>
-    <div class="mf-confirm-row"><span class="mf-confirm-label">Email</span><span class="mf-confirm-value">${email}</span></div>
-    <div class="mf-confirm-row"><span class="mf-confirm-label">Address</span><span class="mf-confirm-value">${address}, ${pin}, ${district}, ${state}</span></div>
-    <div class="mf-confirm-row"><span class="mf-confirm-label">Membership</span><span class="mf-confirm-value">${type} — ${cat === 'individual' ? 'Individual' : 'Family'} — ${dur}</span></div>
-    <div class="mf-confirm-row"><span class="mf-confirm-label">T-Shirts</span><span class="mf-confirm-value">${tshirtCount > 0 ? tshirtCount + ' × ₹800' : 'None'}</span></div>
-    <div class="mf-confirm-row" style="border-top:2px solid var(--green-tint);margin-top:8px;padding-top:8px;"><span class="mf-confirm-label" style="color:var(--green-deep);font-weight:700;">Total</span><span class="mf-confirm-value" style="color:var(--green-deep);font-size:1.05rem;">₹${total.toLocaleString('en-IN')}</span></div>
-  `;
-}
 
 
 // ===== Saffron CTA strip hide on scroll =====
@@ -5093,26 +4938,24 @@ function callAppsScriptJSONP(payload) {
   });
 }
 
-// Razorpay Subscription Plan IDs (Sathi only — Mitra is one-time)
+// Razorpay Subscription Plan IDs (Sathi only — Mitra is one-time).
+// Individual-only as of 2026-08-31 — Family membership was discontinued
+// as a purchasable option (see system-conventions.md section 16). The
+// 'family' plan IDs/prices below are no longer referenced anywhere; left
+// out entirely rather than kept around unused.
 const SATHI_PLANS = {
   individual: {
     Monthly: 'plan_TMtVv0w3fUR1oy',   // ₹100/month
     Yearly:  'plan_TMtWaIuziSsOHQ'    // ₹1,100/year
-  },
-  family: {
-    Monthly: 'plan_TMtX4F5mSsLR1H',   // ₹200/month
-    Yearly:  'plan_TMtXwtStgobDqo'    // ₹2,100/year
   }
 };
 
 // Mitra one-time pricing
 const MITRA_PRICING = {
-  individual: { Lifetime: 11000 },
-  family:     { Lifetime: 21000 }
+  individual: { Lifetime: 11000 }
 };
 
 const TSHIRT_COST = 800;
-let familyMemberCount = 0;
 
 // ============================================================
 // OPEN MEMBERSHIP FORM
@@ -5148,10 +4991,9 @@ function openMembershipForm(type) {
     document.getElementById('mf_duration').value = 'Monthly';
   }
 
-  // Reset form
-  familyMemberCount = 0;
-  document.getElementById('mf_family_list').innerHTML = '';
-  setCategory('individual');
+  // Reset form (category is fixed to 'individual' via the hidden mf_category
+  // input's default value — no toggle to reset since Family membership was
+  // discontinued, see system-conventions.md section 16)
   goToStep(1);
   modal.classList.add('open');
   updateSummary();
@@ -5216,18 +5058,11 @@ function validateStep(step) {
 }
 
 // ============================================================
-// CATEGORY & DURATION SELECTORS
+// DURATION SELECTOR
 // ============================================================
-
-function setCategory(cat) {
-  document.getElementById('mf_category').value = cat;
-  document.querySelectorAll('[id^="cat_"]').forEach(b => b.classList.remove('active'));
-  const btn = document.getElementById('cat_' + cat);
-  if (btn) btn.classList.add('active');
-  const familySection = document.getElementById('mf_family_section');
-  if (familySection) familySection.style.display = cat === 'family' ? 'block' : 'none';
-  updateSummary();
-}
+// (there used to be a matching CATEGORY selector here too — removed
+// 2026-08-31 along with the Individual/Family toggle UI, see
+// system-conventions.md section 16)
 
 function setDuration(dur) {
   document.getElementById('mf_duration').value = dur;
@@ -5248,17 +5083,17 @@ function updateSummary() {
 
   let membershipAmt = 0;
   if (type === 'Sathi' && SATHI_PLANS[category]?.[duration]) {
-    const pricing = { individual: { Monthly: 100, Yearly: 1100 }, family: { Monthly: 200, Yearly: 2100 } };
+    const pricing = { individual: { Monthly: 100, Yearly: 1100 } };
     membershipAmt = pricing[category]?.[duration] || 0;
   } else if (type === 'Mitra') {
     membershipAmt = MITRA_PRICING[category]?.[duration] || 0;
   }
 
+  // Only the primary registrant's own T-shirt can be added now (family
+  // members — and their separate T-shirt checkboxes — were removed
+  // 2026-08-31, see system-conventions.md section 16).
   let tshirtCount = 0;
   if (document.getElementById('mf_primary_tshirt')?.checked) tshirtCount++;
-  document.querySelectorAll('[id^="fm_tshirt_"]').forEach(cb => {
-    if (!cb.id.includes('wrap') && !cb.id.includes('size') && cb.checked) tshirtCount++;
-  });
 
   const tshirtAmt = tshirtCount * TSHIRT_COST;
 
@@ -5303,64 +5138,12 @@ function updateSummary() {
 }
 
 // ============================================================
-// FAMILY MEMBERS
+// PRIMARY MEMBER T-SHIRT
 // ============================================================
-
-function addFamilyMember() {
-  familyMemberCount++;
-  const idx = familyMemberCount;
-  const container = document.getElementById('mf_family_list');
-  const div = document.createElement('div');
-  div.className = 'family-member-card';
-  div.id = `fm_${idx}`;
-  div.innerHTML = `
-    <div class="family-member-header">
-      <span>Family Member ${idx}</span>
-      <button type="button" class="fm-remove" onclick="removeFamilyMember(${idx})">&times;</button>
-    </div>
-    <div class="mf-field-row">
-      <div class="mf-field"><label class="mf-label">Full Name *</label><input type="text" id="fm_name_${idx}" placeholder="Name" class="mf-input" required></div>
-      <div class="mf-field"><label class="mf-label">Relation *<select id="fm_relation_${idx}" class="mf-input"><option>Spouse</option><option>Son</option><option>Daughter</option><option>Mother</option><option>Father</option><option>Other</option></select></label></div>
-    </div>
-    <div class="mf-field-row">
-      <div class="mf-field"><label class="mf-label">Age *</label><input type="number" id="fm_age_${idx}" min="0" max="120" placeholder="Age" class="mf-input" required></div>
-      <div class="mf-field"><label class="mf-label">Gender *<select id="fm_gender_${idx}" class="mf-input"><option>Male</option><option>Female</option><option>Other</option></select></label></div>
-    </div>
-    <label class="mf-tshirt-toggle" style="margin-top:8px;">
-      <input type="checkbox" id="fm_tshirt_${idx}" onchange="toggleFmTshirt(${idx}); updateSummary();">
-      <span class="mf-tshirt-toggle-text">T-Shirt <span class="mf-tshirt-price">₹800 one-time</span></span>
-    </label>
-    <div id="fm_tshirt_wrap_${idx}" style="display:none;" class="mf-field">
-      <label class="mf-label" style="margin-top:8px;">T-Shirt Size</label>
-      <div class="mf-size-grid">
-        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">XS</button>
-        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">S</button>
-        <button type="button" class="mf-size-btn active" onclick="selectSize(this,'fm_tshirt_size_${idx}')">M</button>
-        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">L</button>
-        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">XL</button>
-        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">XXL</button>
-        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">Kids-S</button>
-        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">Kids-M</button>
-        <button type="button" class="mf-size-btn" onclick="selectSize(this,'fm_tshirt_size_${idx}')">Kids-L</button>
-      </div>
-      <input type="hidden" id="fm_tshirt_size_${idx}" value="M">
-    </div>
-  `;
-  container.appendChild(div);
-  updateSummary();
-}
-
-function removeFamilyMember(idx) {
-  const el = document.getElementById(`fm_${idx}`);
-  if (el) el.remove();
-  updateSummary();
-}
-
-function toggleFmTshirt(idx) {
-  const checked = document.getElementById(`fm_tshirt_${idx}`).checked;
-  const wrap = document.getElementById(`fm_tshirt_wrap_${idx}`);
-  if (wrap) wrap.style.display = checked ? 'block' : 'none';
-}
+// (there used to be a whole "FAMILY MEMBERS" section here — add/remove
+// family member cards, each with their own T-shirt toggle — removed
+// 2026-08-31 along with Family membership itself. See
+// system-conventions.md section 16.)
 
 function togglePrimaryTshirt() {
   const checked = document.getElementById('mf_primary_tshirt').checked;
@@ -5388,10 +5171,15 @@ function updatePhotoLabel(input) {
 // ============================================================
 // COLLECT FAMILY DATA
 // ============================================================
+// Despite the name (kept as-is so the backend's Family_Members /
+// TShirt_Orders sheet writes in the .gs file don't need to change,
+// see system-conventions.md section 16), this now only ever returns
+// the primary registrant's own T-shirt order — the "Family members"
+// loop that used to read fm_1, fm_2, ... entries was removed
+// 2026-08-31 along with the add-family-member UI itself.
 
 function collectFamilyData() {
   const family = [];
-  // Primary member tshirt
   const primaryTshirt = document.getElementById('mf_primary_tshirt')?.checked;
   if (primaryTshirt) {
     family.push({
@@ -5400,23 +5188,6 @@ function collectFamilyData() {
       tshirt: true,
       tshirt_size: document.getElementById('mf_primary_tshirt_size')?.value || 'M'
     });
-  }
-  // Family members
-  let idx = 1;
-  while (document.getElementById(`fm_${idx}`)) {
-    const nameEl = document.getElementById(`fm_name_${idx}`);
-    if (nameEl?.value.trim()) {
-      const hasTshirt = document.getElementById(`fm_tshirt_${idx}`)?.checked || false;
-      family.push({
-        name: nameEl.value.trim(),
-        relation: document.getElementById(`fm_relation_${idx}`)?.value || '',
-        age: document.getElementById(`fm_age_${idx}`)?.value || '',
-        gender: document.getElementById(`fm_gender_${idx}`)?.value || '',
-        tshirt: hasTshirt,
-        tshirt_size: hasTshirt ? (document.getElementById(`fm_tshirt_size_${idx}`)?.value || 'M') : ''
-      });
-    }
-    idx++;
   }
   return family;
 }
@@ -5436,7 +5207,6 @@ function populateConfirmBox() {
   const pin = document.getElementById('mf_pin').value;
   const district = document.getElementById('mf_district').value;
   const state = document.getElementById('mf_state').value;
-  const cat = document.getElementById('mf_category').value;
   const dur = document.getElementById('mf_duration').value;
   const { membershipAmt, tshirtCount, tshirtAmt } = updateSummary();
 
@@ -5449,7 +5219,7 @@ function populateConfirmBox() {
     <div class="mf-confirm-row"><span class="mf-confirm-label">Mobile</span><span class="mf-confirm-value">${mobile}</span></div>
     <div class="mf-confirm-row"><span class="mf-confirm-label">Email</span><span class="mf-confirm-value">${email}</span></div>
     <div class="mf-confirm-row"><span class="mf-confirm-label">Address</span><span class="mf-confirm-value">${address}, ${pin}, ${district}, ${state}</span></div>
-    <div class="mf-confirm-row"><span class="mf-confirm-label">Membership</span><span class="mf-confirm-value">${type} — ${cat === 'individual' ? 'Individual' : 'Family'}${type === 'Sathi' ? ' — ' + dur : ''}</span></div>
+    <div class="mf-confirm-row"><span class="mf-confirm-label">Membership</span><span class="mf-confirm-value">${type}${type === 'Sathi' ? ' — ' + dur : ''}</span></div>
     <div class="mf-confirm-row"><span class="mf-confirm-label">T-Shirts</span><span class="mf-confirm-value">${tshirtCount > 0 ? tshirtCount + ' × ₹800' : 'None'}</span></div>
     <div class="mf-confirm-row" style="border-top:2px solid var(--green-tint);margin-top:8px;padding-top:8px;">
       <span class="mf-confirm-label" style="color:var(--green-deep);font-weight:700;">Payment</span>
@@ -5480,7 +5250,12 @@ document.getElementById('membershipForm')?.addEventListener('submit', async func
   const duration = document.getElementById('mf_duration').value;
   const { membershipAmt, tshirtCount, tshirtAmt } = updateSummary();
   const familyData = collectFamilyData();
-  const familyCount = document.querySelectorAll('[id^="fm_"][id$=""]').length;
+  // Always 0 now that Family membership (and the add-family-member UI)
+  // is gone — see system-conventions.md section 16. (The old selector
+  // here, `[id^="fm_"][id$=""]`, actually matched every element whose id
+  // started with "fm_" — 7+ nodes per family member card, not 1 — so this
+  // also quietly fixes a pre-existing overcount bug, moot now either way.)
+  const familyCount = 0;
 
   const payBtn = document.getElementById('membershipPayBtn');
 
@@ -5548,7 +5323,7 @@ document.getElementById('membershipForm')?.addEventListener('submit', async func
         key: RAZORPAY_KEY,
         subscription_id: data.subscription_id,
         name: 'RNEx Trust (Regd.)',
-        description: `Sathi ${category === 'individual' ? 'Individual' : 'Family'} — ${duration}`,
+        description: `Sathi Membership — ${duration}`,
         image: 'https://www.rnextrust.com/assets/images/logo.png',
         prefill: { name, email, contact: mobile },
         notes: memberNotes,
@@ -5577,7 +5352,7 @@ document.getElementById('membershipForm')?.addEventListener('submit', async func
       amount: total * 100,
       currency: 'INR',
       name: 'RNEx Trust (Regd.)',
-      description: `Mitra ${category === 'individual' ? 'Individual' : 'Family'} Membership`,
+      description: 'Mitra Membership',
       image: 'https://www.rnextrust.com/assets/images/logo.png',
       prefill: { name, email, contact: mobile },
       notes: memberNotes,
@@ -6104,7 +5879,16 @@ function setLanguage(lang) {
   var cached = parseInt(localStorage.getItem(CACHE_KEY) || '0', 10);
   if (el && cached) el.textContent = cached.toLocaleString('en-IN');
   if (typeof APPS_SCRIPT_URL === 'undefined') return;
-  var TIMEOUT_MS = 10000;
+  // 2026-08-31: on very slow/flaky connections, the fetch() attempt AND the
+  // JSONP fallback below can both fail to finish before their timeouts —
+  // when that happens the badge is left showing its static HTML placeholder
+  // ("1,076") since nothing ever calls applyCount(). Widened the timeout
+  // (10s -> 20s, matching the donation wall's same fix) and added one retry
+  // of the whole fetch->jsonp chain so a single dropped/slow request doesn't
+  // leave the counter stuck on the placeholder for the rest of the visit.
+  var TIMEOUT_MS = 20000;
+  var MAX_ATTEMPTS = 2;
+  var attempt = 0;
 
   function applyCount(data) {
     if (data && typeof data.count === 'number') {
@@ -6113,26 +5897,27 @@ function setLanguage(lang) {
     }
   }
 
-  function recordVisitJsonp() {
-    var cbName = 'rnexVisitCb_' + Date.now();
-    var timeout = setTimeout(function() { delete window[cbName]; }, TIMEOUT_MS);
+  function recordVisitJsonp(onDone) {
+    var cbName = 'rnexVisitCb_' + Date.now() + '_' + attempt;
+    var timeout = setTimeout(function() { delete window[cbName]; onDone(false); }, TIMEOUT_MS);
     window[cbName] = function(data) {
       clearTimeout(timeout);
       delete window[cbName];
       applyCount(data);
       var script = document.getElementById('visit_jsonp_script');
       if (script) script.remove();
+      onDone(true);
     };
     var params = new URLSearchParams({ action: 'record_visit', callback: cbName });
     var script = document.createElement('script');
     script.id = 'visit_jsonp_script';
     script.src = APPS_SCRIPT_URL + '?' + params.toString();
-    script.onerror = function() { clearTimeout(timeout); delete window[cbName]; };
+    script.onerror = function() { clearTimeout(timeout); delete window[cbName]; onDone(false); };
     document.body.appendChild(script);
   }
 
-  function recordVisit() {
-    if (!window.fetch) { recordVisitJsonp(); return; }
+  function attemptOnce(onDone) {
+    if (!window.fetch) { recordVisitJsonp(onDone); return; }
     var controller = window.AbortController ? new AbortController() : null;
     var timeoutId = controller && setTimeout(function() { controller.abort(); }, TIMEOUT_MS);
     fetch(APPS_SCRIPT_URL + '?action=record_visit', controller ? { signal: controller.signal } : {})
@@ -6141,8 +5926,15 @@ function setLanguage(lang) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
       })
-      .then(applyCount)
-      .catch(function() { recordVisitJsonp(); });
+      .then(function(data) { applyCount(data); onDone(true); })
+      .catch(function() { recordVisitJsonp(onDone); });
+  }
+
+  function recordVisit() {
+    attempt++;
+    attemptOnce(function(success) {
+      if (!success && attempt < MAX_ATTEMPTS) recordVisit();
+    });
   }
 
   recordVisit();
