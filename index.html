@@ -1363,9 +1363,20 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 /* Membership Tiers Grid */
 .membership-tiers {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Mitra (Lifetime Membership) is invite-only (2026-08-31) — hidden by
+     default, so the public view is just the single Sathi card, centered
+     rather than sitting lopsided in a 2-column grid with an empty cell
+     beside it. When someone follows the direct #join-mitra link (see the
+     footer "Lifetime Membership" link), JS below reveals the Mitra card
+     and adds .show-mitra to switch back to the 2-column layout. */
+  grid-template-columns: 1fr;
+  max-width: 480px;
+  margin: 0 auto 20px;
   gap: 18px;
-  margin-bottom: 20px;
+}
+.membership-tiers.show-mitra {
+  grid-template-columns: 1fr 1fr;
+  max-width: none;
 }
 
 .tier-card {
@@ -1501,7 +1512,7 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 }
 
 @media (max-width: 700px) {
-  .membership-tiers { grid-template-columns: 1fr; gap: 14px; }
+  .membership-tiers, .membership-tiers.show-mitra { grid-template-columns: 1fr; gap: 14px; max-width: 480px; }
   .tier-mitra { margin-top: 12px; }
   .tier-card { padding: 14px 12px; }
 }
@@ -3050,7 +3061,7 @@ iframe.goog-te-menu-frame { display: none !important; }
         <button class="btn btn-primary btn-block" onclick="openMembershipForm('Sathi')">Join as Sathi &rarr;</button>
       </div>
 
-      <div class="tier-card tier-mitra">
+      <div class="tier-card tier-mitra" id="join-mitra" style="display:none;">
         <div class="tier-badge tier-badge-mitra">Mitra</div>
         <p class="tier-hindi">मित्र · Permanent Member</p>
         <div class="tier-prices">
@@ -4417,6 +4428,7 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       <a href="#supporters">Supporters</a>
       <a href="#trustees">Trustees</a>
       <a href="#membership">Membership</a>
+      <a href="https://www.rnextrust.com/#join-mitra">Lifetime Membership</a>
       <a href="#donate">Donate</a>
       <a href="#contact">Contact</a>
     </div>
@@ -6261,6 +6273,38 @@ function setLanguage(lang) {
   window.addEventListener('load', syncSaffronHeight);
   setTimeout(syncSaffronHeight, 500);
   setTimeout(syncSaffronHeight, 1500);
+})();
+</script>
+
+<!-- ====== Mitra (Lifetime Membership) — invite-only visibility (added
+     2026-08-31) ======
+     The Mitra card in #membership is hidden by default (display:none in
+     its markup) so the public "Become a Member" section only shows
+     Sathi. The footer's "Lifetime Membership" link points to
+     /#join-mitra — this script reveals the Mitra card (and switches the
+     tiers grid back to its normal 2-column layout) whenever that hash
+     is present, whether the page loads straight in on that link or the
+     link is followed while already on the page. The actual join flow
+     (openMembershipForm('Mitra'), payment, everything) is completely
+     unchanged — only whether the card is visible by default changes. -->
+<script>
+(function() {
+  var mitraCard = document.getElementById('join-mitra');
+  var tiersGrid = document.querySelector('.membership-tiers');
+  if (!mitraCard || !tiersGrid) return;
+  function revealMitraIfLinked() {
+    if (window.location.hash === '#join-mitra') {
+      mitraCard.style.display = '';
+      tiersGrid.classList.add('show-mitra');
+      // Native anchor-scroll can't find the card while it's hidden, so
+      // scroll to it manually once it's visible.
+      setTimeout(function() {
+        mitraCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  }
+  revealMitraIfLinked();
+  window.addEventListener('hashchange', revealMitraIfLinked);
 })();
 </script>
 
