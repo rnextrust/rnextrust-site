@@ -1457,17 +1457,27 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
 .tier-price-opts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 
 .price-chip {
-  background: var(--green-tint);
-  color: var(--green-deep);
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 3px 9px;
+  /* Made this pop more (2026-08-31, at Sanjeev's request) — was a flat
+     pale-green pill, easy to miss next to the plain-white card. Reuses
+     the same saffron gradient as the top CTA strip (#FF6B1A -> #FF9500)
+     so it reads as an intentional highlight rather than a random color. */
+  background: linear-gradient(135deg, #FF6B1A 0%, #FF9500 100%);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 4px 12px;
   border-radius: 100px;
+  box-shadow: 0 2px 8px rgba(255, 149, 0, 0.35);
+  letter-spacing: 0.2px;
 }
 
 .price-chip-mitra {
+  /* Mitra keeps its own deep-green treatment (not the saffron highlight
+     above — that's reserved for Sathi's headline price) with a matching
+     green-tinted shadow instead of inheriting the saffron one. */
   background: var(--green-deep);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(27, 115, 64, 0.3);
 }
 
 .tier-note {
@@ -3045,9 +3055,8 @@ iframe.goog-te-menu-frame { display: none !important; }
         <ul class="tier-benefits">
           <li>Community events &amp; health camps</li>
           <li>Expert guidance workshops</li>
-          <li>Social networking with 1000+ residents</li>
+          <li>Social networking with 10000+ residents</li>
           <li>Emergency support network</li>
-          <li>Continuous for 3 years = Mitra status</li>
         </ul>
         <button class="btn btn-primary btn-block" onclick="openMembershipForm('Sathi')">Join as Sathi &rarr;</button>
       </div>
@@ -5127,7 +5136,11 @@ function updateSummary() {
   if (totalEl) {
     if (type === 'Sathi') {
       totalEl.textContent = tshirtCount > 0
-        ? '₹' + membershipAmt.toLocaleString('en-IN') + '/month + ₹' + tshirtAmt.toLocaleString('en-IN') + ' now'
+        // 2026-08-31: was hardcoded '/month' regardless of the selected Duration
+        // toggle, so Yearly + T-shirt showed "₹1,100/month + ₹800 now" even
+        // though the Membership Fee row above correctly said "/ yearly". Now
+        // reflects whatever duration is actually selected.
+        ? '₹' + membershipAmt.toLocaleString('en-IN') + '/' + duration.toLowerCase() + ' + ₹' + tshirtAmt.toLocaleString('en-IN') + ' now'
         : '₹' + membershipAmt.toLocaleString('en-IN') + ' / ' + duration.toLowerCase() + ' (recurring)';
     } else {
       totalEl.textContent = '₹' + total.toLocaleString('en-IN');
