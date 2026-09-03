@@ -2790,6 +2790,7 @@ iframe.goog-te-menu-frame { display: none !important; }
       <a href="#involved">Get Involved</a>
       <a href="#membership">Membership</a>
       <a href="#lifetime-members">Lifetime Members</a>
+      <a href="#trust-activity">Trust Activity</a>
       <a href="#contact" class="nav-cta">Contact</a>
       <div class="nav-mobile-donate-section">
         <p class="nav-mobile-donate-heading">Donations &amp; Membership</p>
@@ -4302,6 +4303,781 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
 })();
 </script>
 
+<!-- ====== TRUST ACTIVITY / MEDIA (added 2026-09-03) ======
+     Public feed reads from action=trust_activity_feed (fetch-first +
+     JSONP fallback, same technique as #donation-wall above — see that
+     script's comments for the full reasoning). The "Staff Login" link
+     in the footer opens #trustAdminModal below, where Sanjeev/Deepanshu
+     log in (email + PIN, checked against the Trust_Admins sheet) and
+     publish/edit/delete posts. The PIN is hashed in the browser with
+     the Web Crypto API before it ever leaves the browser — only the
+     hash travels over the network.
+
+     Photo uploads and every write action (create/update/delete) go
+     through a hidden iframe form POST (#activityAdminForm below), not
+     fetch — the same technique already proven for Mitra photo uploads
+     elsewhere on this page, since Apps Script Web Apps don't reliably
+     support CORS on POST with a readable response. Photos are stored on
+     the Trust's own Google Drive and only ever displayed from here;
+     YouTube videos are never uploaded anywhere, only the link is stored
+     and embedded. See RNExTrust_System_FINAL.gs, "TRUST ACTIVITY /
+     MEDIA FEED" section, for the backend this talks to. -->
+<style>
+  .activity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 22px;
+    margin-top: 28px;
+  }
+  .activity-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+  }
+  .activity-card-media { position: relative; width: 100%; aspect-ratio: 16 / 10; background: var(--green-tint); overflow: hidden; }
+  .activity-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .activity-card-media-video iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .activity-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .activity-card-text-only .activity-card-body { background: var(--green-tint); }
+  .activity-card-date { font-size: 0.74rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; }
+  .activity-card-title { font-size: 1.05rem; font-weight: 700; color: var(--ink); margin: 0; line-height: 1.3; }
+  .activity-card-text { font-size: 0.9rem; color: var(--ink-soft); line-height: 1.5; margin: 0; white-space: pre-wrap; }
+  .activity-empty { text-align: center; color: var(--ink-soft); margin-top: 24px; }
+  .activity-actions { text-align: center; margin-top: 28px; }
+  @media (max-width: 640px) {
+    .activity-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<section class="section" id="trust-activity">
+  <div class="section-inner">
+    <p class="eyebrow center">On the Ground</p>
+    <h2 class="center">Trust Activity</h2>
+    <p class="section-lede center">Photos, videos and updates from our recent camps, drives and events.</p>
+
+    <p class="activity-empty" id="activityLoading">Loading recent activity&hellip;</p>
+    <div class="activity-grid" id="activityGrid" style="display:none;"></div>
+    <p class="activity-empty" id="activityEmpty" style="display:none;">No activity posted yet — check back soon.</p>
+    <p class="activity-empty" id="activityError" style="display:none;">
+      Couldn&rsquo;t load activity right now &mdash; this can happen on a slow connection.
+      <button type="button" class="link-arrow" id="activityRetry" style="background:none;border:none;cursor:pointer;padding:0;">Try again &rarr;</button>
+    </p>
+
+    <div class="activity-actions">
+      <button type="button" class="btn btn-ghost" id="activityViewMore" style="display:none;">View More</button>
+    </div>
+  </div>
+</section>
+<script>
+(function () {
+  var ALL_POSTS = [];
+  var visibleCount = 6;
+  var PAGE_SIZE = 6;
+
+  var els = {
+    grid: document.getElementById('activityGrid'),
+    loading: document.getElementById('activityLoading'),
+    empty: document.getElementById('activityEmpty'),
+    error: document.getElementById('activityError'),
+    retry: document.getElementById('activityRetry'),
+    viewMore: document.getElementById('activityViewMore')
+  };
+
+  function escapeHTML(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  function parseDate(str) {
+    if (!str) return null;
+    var parts = String(str).trim().split(' ');
+    var d = parts[0].split('-');
+    if (d.length !== 3) return null;
+    return new Date(parseInt(d[2], 10), parseInt(d[1], 10) - 1, parseInt(d[0], 10));
+  }
+
+  function formatDisplayDate(str) {
+    var dt = parseDate(str);
+    if (!dt) return escapeHTML(str);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+  }
+
+  function mediaHTML(post) {
+    if (post.mediaType === 'Photo' && post.imageUrl) {
+      return '<div class="activity-card-media"><img src="' + escapeHTML(post.imageUrl) + '" alt="' + escapeHTML(post.title) + '" loading="lazy"></div>';
+    }
+    if (post.mediaType === 'Video' && post.youtubeId) {
+      return '<div class="activity-card-media activity-card-media-video"><iframe src="https://www.youtube.com/embed/' + escapeHTML(post.youtubeId) + '" title="' + escapeHTML(post.title) + '" loading="lazy" allowfullscreen></iframe></div>';
+    }
+    return '';
+  }
+
+  function cardHTML(post) {
+    var media = mediaHTML(post);
+    return (
+      '<div class="activity-card' + (media ? '' : ' activity-card-text-only') + '">' +
+        media +
+        '<div class="activity-card-body">' +
+          '<span class="activity-card-date">' + formatDisplayDate(post.date) + '</span>' +
+          '<h3 class="activity-card-title">' + escapeHTML(post.title) + '</h3>' +
+          (post.body ? '<p class="activity-card-text">' + escapeHTML(post.body) + '</p>' : '') +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function render() {
+    els.loading.style.display = 'none';
+    els.error.style.display = 'none';
+    var slice = ALL_POSTS.slice(0, visibleCount);
+    if (!slice.length) {
+      els.grid.style.display = 'none';
+      els.grid.innerHTML = '';
+      els.empty.style.display = '';
+    } else {
+      els.empty.style.display = 'none';
+      els.grid.style.display = '';
+      els.grid.innerHTML = slice.map(cardHTML).join('');
+    }
+    els.viewMore.style.display = (visibleCount < ALL_POSTS.length) ? '' : 'none';
+  }
+
+  function showLoadFailure() {
+    els.loading.style.display = 'none';
+    els.grid.style.display = 'none';
+    els.empty.style.display = 'none';
+    els.viewMore.style.display = 'none';
+    els.error.style.display = '';
+  }
+
+  function showLoadingState() {
+    els.loading.style.display = '';
+    els.error.style.display = 'none';
+    els.grid.style.display = 'none';
+    els.empty.style.display = 'none';
+  }
+
+  els.viewMore.addEventListener('click', function () {
+    visibleCount += PAGE_SIZE;
+    render();
+  });
+
+  // Same fetch()-first / JSONP-fallback dual load as #donation-wall above.
+  var TIMEOUT_MS = 20000;
+  var MAX_ATTEMPTS = 3;
+
+  function onActivityData(data) {
+    ALL_POSTS = (data && data.posts) ? data.posts : [];
+    render();
+  }
+
+  function loadActivityJsonp(attempt) {
+    attempt = attempt || 1;
+    showLoadingState();
+
+    var settled = false;
+    var callbackName = 'activityFeedCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    var script = document.createElement('script');
+    var timeoutId = setTimeout(function () { finish(null); }, TIMEOUT_MS);
+
+    function finish(data) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+
+      if (!data) {
+        if (attempt < MAX_ATTEMPTS) {
+          loadActivityJsonp(attempt + 1);
+        } else {
+          showLoadFailure();
+        }
+        return;
+      }
+      onActivityData(data);
+    }
+
+    window[callbackName] = finish;
+    script.onerror = function () { finish(null); };
+    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
+    script.src = baseUrl + '?action=trust_activity_feed&callback=' + callbackName;
+    document.body.appendChild(script);
+  }
+
+  function loadActivity() {
+    showLoadingState();
+    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
+
+    if (!window.fetch) {
+      loadActivityJsonp(1);
+      return;
+    }
+
+    var controller = window.AbortController ? new AbortController() : null;
+    var timeoutId = controller && setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
+
+    fetch(baseUrl + '?action=trust_activity_feed', controller ? { signal: controller.signal } : {})
+      .then(function (res) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(onActivityData)
+      .catch(function () {
+        loadActivityJsonp(1);
+      });
+  }
+
+  if (els.retry) {
+    els.retry.addEventListener('click', loadActivity);
+  }
+
+  // Exposed so the admin panel can refresh this grid right after a
+  // publish/edit/delete, without a full page reload.
+  window.RNExReloadTrustActivity = loadActivity;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { loadActivity(); });
+  } else {
+    loadActivity();
+  }
+})();
+</script>
+
+<!-- ====== TRUST ACTIVITY ADMIN PANEL ======
+     Reached only via the small "Staff Login" link in the footer — not
+     linked anywhere prominent, matching Sanjeev's request that posting
+     be an internal-only workflow. -->
+<style>
+  #trustAdminModal .modal-box { max-width: 640px; text-align: left; }
+  .ta-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .ta-field label { font-size: 0.82rem; font-weight: 600; color: var(--ink); }
+  .ta-hint { font-size: 0.76rem; color: var(--ink-soft); margin: 2px 0 0; font-weight: 400; }
+  .ta-error { display: none; color: #B3261E; font-size: 0.85rem; margin: 8px 0; }
+  .ta-success { display: none; color: var(--green-deep); font-size: 0.85rem; margin: 8px 0; }
+  .ta-media-toggle { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .ta-media-toggle button {
+    flex: 1; min-width: 100px; padding: 8px 10px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border-soft); background: var(--paper); color: var(--ink-soft);
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  }
+  .ta-media-toggle button.active { background: var(--green-deep); color: #fff; border-color: var(--green-deep); }
+  .ta-photo-preview { display: none; width: 100%; max-height: 220px; object-fit: cover; border-radius: var(--radius-sm); margin: 6px 0; }
+  .ta-welcome { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }
+  .ta-post-list { margin-top: 22px; border-top: 1px solid var(--border-soft); padding-top: 16px; max-height: 320px; overflow-y: auto; }
+  .ta-post-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
+  .ta-post-item:last-child { border-bottom: none; }
+  .ta-post-item-title { font-weight: 600; font-size: 0.88rem; color: var(--ink); }
+  .ta-post-item-meta { font-size: 0.74rem; color: var(--ink-soft); }
+  .ta-post-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .ta-post-item-actions button { font-size: 0.74rem; padding: 4px 9px; border-radius: 100px; border: 1px solid var(--border-soft); background: var(--paper); cursor: pointer; }
+  .ta-post-item-actions button.ta-delete-btn { color: #B3261E; border-color: #B3261E; }
+  .ta-edit-banner { background: var(--green-tint); color: var(--green-deep); font-size: 0.82rem; padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; display: none; }
+</style>
+<div class="modal-overlay" id="trustAdminModal">
+  <div class="modal-box">
+    <button class="modal-close" data-close type="button">&times;</button>
+    <h2 style="margin-top:0;">Trust Activity — Staff Login</h2>
+
+    <div id="taLoginView">
+      <p class="section-lede" style="margin-top:0;text-align:left;">Post photos, videos and updates to the Trust Activity section.</p>
+      <div class="ta-field">
+        <label for="ta_email">Email</label>
+        <select id="ta_email">
+          <option value="">Select your email</option>
+          <option value="sanjeev@rnextrust.com">sanjeev@rnextrust.com</option>
+          <option value="deepanshu@rnextrust.com">deepanshu@rnextrust.com</option>
+        </select>
+      </div>
+      <div class="ta-field">
+        <label for="ta_pin">PIN</label>
+        <input type="password" id="ta_pin" inputmode="numeric" autocomplete="off" placeholder="Enter your PIN">
+      </div>
+      <p class="ta-error" id="taLoginError"></p>
+      <button type="button" class="btn btn-primary btn-block" id="taLoginBtn">Log In</button>
+    </div>
+
+    <div id="taPanelView" style="display:none;">
+      <div class="ta-welcome">
+        <span id="taWelcomeText"></span>
+        <button type="button" class="btn btn-ghost" id="taLogoutBtn">Log Out</button>
+      </div>
+
+      <p class="ta-edit-banner" id="taEditBanner">Editing a post &mdash; <a href="#" id="taCancelEdit">Cancel</a></p>
+
+      <div class="ta-media-toggle" id="taMediaToggle">
+        <button type="button" class="active" data-media="Photo">📷 Photo</button>
+        <button type="button" data-media="Video">▶️ YouTube Video</button>
+        <button type="button" data-media="Text">✏️ Text only</button>
+      </div>
+
+      <div class="ta-field" id="taPhotoField">
+        <label for="ta_photo">Photo</label>
+        <input type="file" id="ta_photo" accept="image/*">
+        <img id="taPhotoPreview" class="ta-photo-preview" alt="">
+        <p class="ta-hint">Resized automatically before upload. Stored on the Trust's Google Drive — only displayed here.</p>
+      </div>
+
+      <div class="ta-field" id="taYoutubeField" style="display:none;">
+        <label for="ta_youtube_url">YouTube link</label>
+        <input type="url" id="ta_youtube_url" placeholder="https://youtube.com/watch?v=...">
+        <p class="ta-hint">The video stays hosted on YouTube — only the link is stored here.</p>
+      </div>
+
+      <div class="ta-field">
+        <label for="ta_title">Heading</label>
+        <input type="text" id="ta_title" maxlength="120" placeholder="e.g. Blood Donation Camp — 6 Sept 2026">
+      </div>
+
+      <div class="ta-field">
+        <label for="ta_body">Description</label>
+        <textarea id="ta_body" rows="4" maxlength="2000" placeholder="Details shown under the heading on the site"></textarea>
+      </div>
+
+      <div class="ta-field">
+        <label for="ta_meta_tags">Meta Tags <span class="ta-hint">(internal only — not shown on the site)</span></label>
+        <input type="text" id="ta_meta_tags" placeholder="e.g. blood-donation, yashoda-hospital">
+      </div>
+
+      <div class="ta-field">
+        <label for="ta_keywords">Keywords <span class="ta-hint">(internal only — not shown on the site)</span></label>
+        <input type="text" id="ta_keywords" placeholder="e.g. blood donation camp ghaziabad">
+      </div>
+
+      <p class="ta-error" id="taFormError"></p>
+      <p class="ta-success" id="taFormSuccess"></p>
+      <button type="button" class="btn btn-primary btn-block" id="taSubmitBtn">Publish</button>
+
+      <div class="ta-post-list" id="taPostList">
+        <p class="ta-hint">Loading your posts&hellip;</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<iframe name="activityAdminFrame" id="activityAdminFrame" style="display:none;" title="Trust Activity admin (background)"></iframe>
+<form id="activityAdminForm" target="activityAdminFrame" method="POST" action="" style="display:none;">
+  <input type="hidden" name="action" id="taa_action">
+  <input type="hidden" name="email" id="taa_email">
+  <input type="hidden" name="pin_hash" id="taa_pin_hash">
+  <input type="hidden" name="post_id" id="taa_post_id">
+  <input type="hidden" name="title" id="taa_title">
+  <input type="hidden" name="body" id="taa_body">
+  <input type="hidden" name="media_type" id="taa_media_type">
+  <input type="hidden" name="youtube_url" id="taa_youtube_url">
+  <input type="hidden" name="photo_base64" id="taa_photo_base64">
+  <input type="hidden" name="photo_mime" id="taa_photo_mime">
+  <input type="hidden" name="meta_tags" id="taa_meta_tags">
+  <input type="hidden" name="keywords" id="taa_keywords">
+</form>
+<script>
+(function () {
+  var TA_SESSION_KEY = 'rnexTrustAdminSession';
+  var taSession = null;
+  var taEditingId = null;
+  var taSelectedMedia = 'Photo';
+  var taPhotoBase64 = '';
+  var taPhotoMime = 'image/jpeg';
+  var taPendingAction = null; // 'create' | 'update' | 'delete'
+  var taPostsCache = [];
+
+  var taEls = {
+    loginView: document.getElementById('taLoginView'),
+    panelView: document.getElementById('taPanelView'),
+    email: document.getElementById('ta_email'),
+    pin: document.getElementById('ta_pin'),
+    loginError: document.getElementById('taLoginError'),
+    loginBtn: document.getElementById('taLoginBtn'),
+    welcomeText: document.getElementById('taWelcomeText'),
+    logoutBtn: document.getElementById('taLogoutBtn'),
+    editBanner: document.getElementById('taEditBanner'),
+    cancelEdit: document.getElementById('taCancelEdit'),
+    mediaToggle: document.getElementById('taMediaToggle'),
+    photoField: document.getElementById('taPhotoField'),
+    youtubeField: document.getElementById('taYoutubeField'),
+    photo: document.getElementById('ta_photo'),
+    photoPreview: document.getElementById('taPhotoPreview'),
+    youtubeUrl: document.getElementById('ta_youtube_url'),
+    title: document.getElementById('ta_title'),
+    body: document.getElementById('ta_body'),
+    metaTags: document.getElementById('ta_meta_tags'),
+    keywords: document.getElementById('ta_keywords'),
+    formError: document.getElementById('taFormError'),
+    formSuccess: document.getElementById('taFormSuccess'),
+    submitBtn: document.getElementById('taSubmitBtn'),
+    postList: document.getElementById('taPostList')
+  };
+
+  function taEscapeHTML(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  function taSetMsg(el, msg) {
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? '' : 'none';
+  }
+
+  // Hashes a PIN the same way RNExTrust_System_FINAL.gs's hashPin_() does
+  // server-side (SHA-256), using the browser's own Web Crypto API — the
+  // plain PIN itself never leaves the browser.
+  function taSha256Hex(str) {
+    var enc = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', enc).then(function (buf) {
+      var bytes = new Uint8Array(buf);
+      var hex = '';
+      for (var i = 0; i < bytes.length; i++) {
+        hex += ('0' + bytes[i].toString(16)).slice(-2);
+      }
+      return hex;
+    });
+  }
+
+  // Scales a photo down (preserving aspect ratio, unlike the square-crop
+  // helper used for Mitra profile photos) so an activity photo never
+  // uploads at full camera resolution — same page-weight lesson learned
+  // elsewhere on this site, applied up front here instead of after the
+  // fact.
+  function taResizeImageToBase64(file, maxDim, quality, callback) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+          else { w = Math.round(w * (maxDim / h)); h = maxDim; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        callback(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = function () { callback(null); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { callback(null); };
+    reader.readAsDataURL(file);
+  }
+
+  // Shared GET helper for the admin endpoints — fetch() first, one JSONP
+  // fallback attempt if that fails. No retry loop (unlike the public
+  // feed above): this is a deliberate staff action at a keyboard, not a
+  // passive page load, so if it fails once, they can just try again.
+  function taFetchGET(action, params, onDone) {
+    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
+    var qs = 'action=' + encodeURIComponent(action);
+    for (var k in params) {
+      if (Object.prototype.hasOwnProperty.call(params, k)) {
+        qs += '&' + k + '=' + encodeURIComponent(params[k]);
+      }
+    }
+
+    function jsonp() {
+      var settled = false;
+      var callbackName = 'taCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+      var script = document.createElement('script');
+      var timeoutId = setTimeout(function () { finish(null); }, 15000);
+      function finish(data) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        delete window[callbackName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        onDone(data);
+      }
+      window[callbackName] = finish;
+      script.onerror = function () { finish(null); };
+      script.src = baseUrl + '?' + qs + '&callback=' + callbackName;
+      document.body.appendChild(script);
+    }
+
+    if (!window.fetch) { jsonp(); return; }
+    var controller = window.AbortController ? new AbortController() : null;
+    var timeoutId = controller && setTimeout(function () { controller.abort(); }, 15000);
+    fetch(baseUrl + '?' + qs, controller ? { signal: controller.signal } : {})
+      .then(function (res) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) { onDone(data); })
+      .catch(jsonp);
+  }
+
+  function taRestoreSession() {
+    try {
+      var raw = sessionStorage.getItem(TA_SESSION_KEY);
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      if (parsed && parsed.email && parsed.pinHash) {
+        taSession = parsed;
+        taShowPanel();
+      }
+    } catch (err) { taSession = null; }
+  }
+
+  function taShowPanel() {
+    taEls.loginView.style.display = 'none';
+    taEls.panelView.style.display = '';
+    taEls.welcomeText.textContent = 'Logged in as ' + (taSession.name || taSession.email);
+    taLoadMyPosts();
+  }
+
+  function taShowLogin() {
+    taEls.loginView.style.display = '';
+    taEls.panelView.style.display = 'none';
+  }
+
+  taEls.loginBtn.addEventListener('click', function () {
+    taSetMsg(taEls.loginError, '');
+    var email = taEls.email.value;
+    var pin = taEls.pin.value;
+    if (!email) { taSetMsg(taEls.loginError, 'Please select your email.'); return; }
+    if (!pin) { taSetMsg(taEls.loginError, 'Please enter your PIN.'); return; }
+    if (!window.crypto || !window.crypto.subtle) {
+      taSetMsg(taEls.loginError, 'Your browser does not support the secure login needed here — please use a modern browser.');
+      return;
+    }
+    taEls.loginBtn.disabled = true;
+    taEls.loginBtn.textContent = 'Logging in…';
+    taSha256Hex(pin).then(function (pinHash) {
+      taFetchGET('admin_login', { email: email, pin_hash: pinHash }, function (data) {
+        taEls.loginBtn.disabled = false;
+        taEls.loginBtn.textContent = 'Log In';
+        if (data && data.status === 'ok') {
+          taSession = { email: data.email || email, pinHash: pinHash, name: data.name || email };
+          try { sessionStorage.setItem(TA_SESSION_KEY, JSON.stringify(taSession)); } catch (err) {}
+          taEls.pin.value = '';
+          taShowPanel();
+        } else {
+          taSetMsg(taEls.loginError, (data && data.message) || "Couldn't log in — please check your connection and try again.");
+        }
+      });
+    });
+  });
+
+  taEls.logoutBtn.addEventListener('click', function () {
+    taSession = null;
+    try { sessionStorage.removeItem(TA_SESSION_KEY); } catch (err) {}
+    taCancelEditMode();
+    taShowLogin();
+  });
+
+  taEls.mediaToggle.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('button[data-media]');
+    if (!btn) return;
+    taSelectedMedia = btn.getAttribute('data-media');
+    var buttons = taEls.mediaToggle.querySelectorAll('button');
+    for (var i = 0; i < buttons.length; i++) buttons[i].classList.remove('active');
+    btn.classList.add('active');
+    taEls.photoField.style.display = (taSelectedMedia === 'Photo') ? '' : 'none';
+    taEls.youtubeField.style.display = (taSelectedMedia === 'Video') ? '' : 'none';
+  });
+
+  taEls.photo.addEventListener('change', function () {
+    var file = taEls.photo.files && taEls.photo.files[0];
+    if (!file) return;
+    taPhotoBase64 = '';
+    taResizeImageToBase64(file, 1600, 0.85, function (dataUrl) {
+      if (!dataUrl) { taSetMsg(taEls.formError, 'Could not read that photo — please try another.'); return; }
+      taPhotoBase64 = dataUrl.split(',')[1] || '';
+      taPhotoMime = 'image/jpeg';
+      taEls.photoPreview.src = dataUrl;
+      taEls.photoPreview.style.display = 'block';
+    });
+  });
+
+  function taEnterEditMode(post) {
+    taEditingId = post.id;
+    taEls.title.value = post.title || '';
+    taEls.body.value = post.body || '';
+    taEls.metaTags.value = post.metaTags || '';
+    taEls.keywords.value = post.keywords || '';
+    taEls.mediaToggle.style.display = 'none';
+    taEls.photoField.style.display = 'none';
+    taEls.youtubeField.style.display = 'none';
+    taEls.editBanner.style.display = '';
+    taEls.submitBtn.textContent = 'Save Changes';
+    taEls.title.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function taCancelEditMode() {
+    taEditingId = null;
+    taEls.title.value = '';
+    taEls.body.value = '';
+    taEls.metaTags.value = '';
+    taEls.keywords.value = '';
+    taEls.photo.value = '';
+    taPhotoBase64 = '';
+    taEls.photoPreview.style.display = 'none';
+    taEls.youtubeUrl.value = '';
+    taSelectedMedia = 'Photo';
+    var buttons = taEls.mediaToggle.querySelectorAll('button');
+    for (var i = 0; i < buttons.length; i++) buttons[i].classList.remove('active');
+    var photoBtn = taEls.mediaToggle.querySelector('[data-media="Photo"]');
+    if (photoBtn) photoBtn.classList.add('active');
+    taEls.mediaToggle.style.display = '';
+    taEls.photoField.style.display = '';
+    taEls.youtubeField.style.display = 'none';
+    taEls.editBanner.style.display = 'none';
+    taEls.submitBtn.textContent = 'Publish';
+  }
+
+  taEls.cancelEdit.addEventListener('click', function (ev) { ev.preventDefault(); taCancelEditMode(); });
+
+  taEls.submitBtn.addEventListener('click', function () {
+    taSetMsg(taEls.formError, '');
+    taSetMsg(taEls.formSuccess, '');
+    if (!taSession) { taSetMsg(taEls.formError, 'Please log in again.'); taShowLogin(); return; }
+
+    var title = taEls.title.value.trim();
+    if (!title) { taSetMsg(taEls.formError, 'Please add a heading.'); return; }
+
+    document.getElementById('taa_email').value = taSession.email;
+    document.getElementById('taa_pin_hash').value = taSession.pinHash;
+    document.getElementById('taa_title').value = title;
+    document.getElementById('taa_body').value = taEls.body.value.trim();
+    document.getElementById('taa_meta_tags').value = taEls.metaTags.value.trim();
+    document.getElementById('taa_keywords').value = taEls.keywords.value.trim();
+
+    if (taEditingId) {
+      document.getElementById('taa_action').value = 'admin_update_post';
+      document.getElementById('taa_post_id').value = taEditingId;
+      taPendingAction = 'update';
+    } else {
+      if (taSelectedMedia === 'Photo' && !taPhotoBase64) { taSetMsg(taEls.formError, 'Please choose a photo first.'); return; }
+      if (taSelectedMedia === 'Video' && !taEls.youtubeUrl.value.trim()) { taSetMsg(taEls.formError, 'Please paste a YouTube link.'); return; }
+      document.getElementById('taa_action').value = 'admin_create_post';
+      document.getElementById('taa_post_id').value = '';
+      document.getElementById('taa_media_type').value = taSelectedMedia;
+      document.getElementById('taa_youtube_url').value = taSelectedMedia === 'Video' ? taEls.youtubeUrl.value.trim() : '';
+      document.getElementById('taa_photo_base64').value = taSelectedMedia === 'Photo' ? taPhotoBase64 : '';
+      document.getElementById('taa_photo_mime').value = taPhotoMime;
+      taPendingAction = 'create';
+    }
+
+    var form = document.getElementById('activityAdminForm');
+    form.setAttribute('action', window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL);
+    taEls.submitBtn.disabled = true;
+    taEls.submitBtn.textContent = taEditingId ? 'Saving…' : 'Publishing…';
+    form.submit();
+  });
+
+  function taPostItemHTML(post) {
+    var badge = post.mediaType === 'Photo' ? '📷' : (post.mediaType === 'Video' ? '▶️' : '✏️');
+    return (
+      '<div class="ta-post-item" data-id="' + taEscapeHTML(post.id) + '">' +
+        '<div>' +
+          '<div class="ta-post-item-title">' + badge + ' ' + taEscapeHTML(post.title) + '</div>' +
+          '<div class="ta-post-item-meta">' + taEscapeHTML(post.date) + ' &middot; ' + taEscapeHTML(post.postedBy) + '</div>' +
+        '</div>' +
+        '<div class="ta-post-item-actions">' +
+          '<button type="button" class="ta-edit-btn">Edit</button>' +
+          '<button type="button" class="ta-delete-btn">Delete</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function taLoadMyPosts() {
+    if (!taSession) return;
+    taEls.postList.innerHTML = '<p class="ta-hint">Loading your posts&hellip;</p>';
+    taFetchGET('admin_list_posts', { email: taSession.email, pin_hash: taSession.pinHash }, function (data) {
+      if (!data || data.status !== 'ok') {
+        taEls.postList.innerHTML = '<p class="ta-hint">Could not load posts right now.</p>';
+        return;
+      }
+      taPostsCache = data.posts || [];
+      if (!taPostsCache.length) {
+        taEls.postList.innerHTML = '<p class="ta-hint">No posts yet — publish your first update above.</p>';
+        return;
+      }
+      taEls.postList.innerHTML = taPostsCache.map(taPostItemHTML).join('');
+    });
+  }
+
+  taEls.postList.addEventListener('click', function (ev) {
+    var item = ev.target.closest('.ta-post-item');
+    if (!item) return;
+    var id = item.getAttribute('data-id');
+    var matches = taPostsCache.filter(function (p) { return String(p.id) === String(id); });
+    var post = matches[0];
+    if (!post) return;
+
+    if (ev.target.closest('.ta-edit-btn')) {
+      taEnterEditMode(post);
+      return;
+    }
+    if (ev.target.closest('.ta-delete-btn')) {
+      if (!window.confirm('Delete "' + post.title + '"? It will be removed from the site (kept in the Sheet for records).')) return;
+      if (!taSession) return;
+      document.getElementById('taa_action').value = 'admin_delete_post';
+      document.getElementById('taa_email').value = taSession.email;
+      document.getElementById('taa_pin_hash').value = taSession.pinHash;
+      document.getElementById('taa_post_id').value = post.id;
+      taPendingAction = 'delete';
+      var form = document.getElementById('activityAdminForm');
+      form.setAttribute('action', window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL);
+      form.submit();
+    }
+  });
+
+  // Shared response handler for the hidden-iframe form above. Guarded by
+  // taPendingAction so it never reacts to an unrelated postMessage (e.g.
+  // the separate Mitra prepay-photo flow elsewhere on this page, which
+  // always carries a top-level fileId this admin panel never sends).
+  window.addEventListener('message', function (event) {
+    var data = event.data;
+    if (typeof data !== 'string') return;
+    var parsed;
+    try { parsed = JSON.parse(data); } catch (err) { return; }
+    if (!parsed || (parsed.status !== 'ok' && parsed.status !== 'error')) return;
+    if (!taPendingAction) return;
+
+    var action = taPendingAction;
+    taPendingAction = null;
+    taEls.submitBtn.disabled = false;
+
+    if (action === 'create' || action === 'update') {
+      taEls.submitBtn.textContent = taEditingId ? 'Save Changes' : 'Publish';
+      if (parsed.status === 'ok') {
+        taSetMsg(taEls.formSuccess, action === 'update' ? 'Post updated.' : 'Post published.');
+        taCancelEditMode();
+        taLoadMyPosts();
+        if (window.RNExReloadTrustActivity) window.RNExReloadTrustActivity();
+      } else {
+        taSetMsg(taEls.formSuccess, '');
+        taSetMsg(taEls.formError, parsed.message || 'Something went wrong — please try again.');
+      }
+    } else if (action === 'delete') {
+      if (parsed.status === 'ok') {
+        taLoadMyPosts();
+        if (window.RNExReloadTrustActivity) window.RNExReloadTrustActivity();
+      } else {
+        window.alert(parsed.message || 'Could not delete that post — please try again.');
+      }
+    }
+  });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', taRestoreSession);
+  } else {
+    taRestoreSession();
+  }
+})();
+</script>
 <!-- ====== CONTACT ====== -->
 <section class="section section-dark" id="contact">
   <div class="section-inner contact-grid">
@@ -4410,6 +5186,7 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       <a href="#trustees">Trustees</a>
       <a href="#membership">Membership</a>
       <a href="#join-mitra">Lifetime Membership</a>
+      <a href="#trust-activity">Trust Activity</a>
       <a href="#donate">Donate</a>
       <a href="#contact">Contact</a>
     </div>
@@ -4425,6 +5202,7 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   </div>
   <div class="footer-bottom">
     <p>&copy; 2026 RNEx Trust (Regd.). All rights reserved. &middot; D-502, Brave Hearts Apartments (Regd.) &amp; Studio 613, AVS City Square, Raj Nagar Extension, Ghaziabad, UP 201017</p>
+    <p style="margin:8px 0 0;font-size:0.75rem;"><a href="#" data-modal="trustAdminModal" style="color:var(--ink-soft);opacity:0.7;">Staff Login</a></p>
   </div>
 </footer>
 
