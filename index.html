@@ -802,6 +802,7 @@ h2 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
+  align-items: start;
 }
 .event-card {
   background: var(--paper-card);
@@ -2873,10 +2874,17 @@ iframe.goog-te-menu-frame { display: none !important; }
      and embedded. See RNExTrust_System_FINAL.gs, "TRUST ACTIVITY /
      MEDIA FEED" section, for the backend this talks to. -->
 <style>
+  /* Compact, thumbnail-led cards (redesigned 2026-09-04 for mobile
+     readability — see Sanjeev's feedback: photos were being cropped,
+     cards took too much vertical space on phones, and there was no way
+     to scan several updates at once). Each card shows a small
+     letterboxed (never-cropped) thumbnail, heading, a 2-line text
+     preview, and a "...more" link that opens the full post in a modal
+     — the image is never cut off there either. */
   .activity-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 22px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
     margin-top: 28px;
   }
   .activity-card {
@@ -2887,20 +2895,80 @@ iframe.goog-te-menu-frame { display: none !important; }
     box-shadow: var(--shadow-card);
     display: flex;
     flex-direction: column;
+    cursor: pointer;
+    text-align: left;
   }
-  .activity-card-media { position: relative; width: 100%; aspect-ratio: 16 / 10; background: var(--green-tint); overflow: hidden; }
-  .activity-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .activity-card-media-video iframe { width: 100%; height: 100%; border: 0; display: block; }
-  .activity-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  /* object-fit: contain (not cover) + a neutral fill behind the image
+     means any photo — portrait, landscape, a dense poster like the
+     blood-camp flyer — always shows in full, letterboxed rather than
+     cropped. */
+  .activity-card-media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: var(--paper);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .activity-card-media img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .activity-card-media-video::after {
+    content: '\25B6';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px; height: 40px;
+    background: rgba(26,26,26,0.6);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+    pointer-events: none;
+  }
+  .activity-card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
   .activity-card-text-only .activity-card-body { background: var(--green-tint); }
-  .activity-card-date { font-size: 0.74rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; }
-  .activity-card-title { font-size: 1.05rem; font-weight: 700; color: var(--ink); margin: 0; line-height: 1.3; }
-  .activity-card-text { font-size: 0.9rem; color: var(--ink-soft); line-height: 1.5; margin: 0; white-space: pre-wrap; }
+  .activity-card-date { font-size: 0.68rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; }
+  .activity-card-title {
+    font-size: 0.92rem; font-weight: 700; color: var(--ink); margin: 0; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .activity-card-text {
+    font-size: 0.82rem; color: var(--ink-soft); line-height: 1.45; margin: 0;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .activity-card-more { font-size: 0.78rem; font-weight: 700; color: var(--green-deep); margin-top: 2px; }
   .activity-empty { text-align: center; color: var(--ink-soft); margin-top: 24px; }
   .activity-actions { text-align: center; margin-top: 28px; }
   @media (max-width: 640px) {
-    .activity-grid { grid-template-columns: 1fr; }
+    .activity-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .activity-card-body { padding: 10px 10px 12px; gap: 3px; }
+    .activity-card-title { font-size: 0.82rem; }
+    .activity-card-text { font-size: 0.74rem; -webkit-line-clamp: 2; }
+    .activity-card-date { font-size: 0.62rem; }
   }
+  @media (max-width: 360px) {
+    .activity-grid { gap: 8px; }
+  }
+
+  /* Full-post modal — opened by tapping a card or its "...more" link.
+     Reuses the site's existing .modal-overlay/.modal-box open/close
+     system (data-close, backdrop click, Escape all already wired up
+     generically for every .modal-overlay present at page load). */
+  #activityPostModal .modal-box { max-width: 640px; padding: 0; overflow: hidden; }
+  #activityPostModal .modal-close { background: rgba(26,26,26,0.55); }
+  #activityPostModal .modal-close:hover,
+  #activityPostModal .modal-close:active { background: rgba(26,26,26,0.75); }
+  #activityPostModal .apm-media {
+    width: 100%; max-height: 60vh; background: var(--paper);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  #activityPostModal .apm-media img { width: 100%; height: 100%; max-height: 60vh; object-fit: contain; display: block; }
+  #activityPostModal .apm-media iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; }
+  #activityPostModal .apm-body { padding: 22px 24px 26px; }
+  #activityPostModal .apm-date { font-size: 0.76rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; }
+  #activityPostModal .apm-title { margin: 6px 0 14px; font-size: 1.3rem; }
+  #activityPostModal .apm-text { white-space: pre-wrap; line-height: 1.6; color: var(--ink-soft); font-size: 0.95rem; margin: 0; }
 </style>
 
 <section class="section" id="trust-activity">
@@ -2908,7 +2976,6 @@ iframe.goog-te-menu-frame { display: none !important; }
     <p class="eyebrow center">On the Ground</p>
     <h2 class="center">Trust Activity</h2>
     <p class="section-lede center">Photos, videos and updates from our recent camps, drives and events.</p>
-    <p class="center" style="margin:-6px 0 20px;"><a href="#" data-modal="trustAdminModal" class="link-arrow">Staff Login — post an update &rarr;</a></p>
 
     <p class="activity-empty" id="activityLoading">Loading recent activity&hellip;</p>
     <div class="activity-grid" id="activityGrid" style="display:none;"></div>
@@ -2923,6 +2990,23 @@ iframe.goog-te-menu-frame { display: none !important; }
     </div>
   </div>
 </section>
+
+<!-- Full-post view, opened by tapping any Trust Activity card. Content
+     is filled in by JS from the same post data the card was built from —
+     nothing is re-fetched. Uses the site's existing generic modal
+     open/close wiring (data-close / backdrop click / Escape). -->
+<div class="modal-overlay" id="activityPostModal">
+  <div class="modal-box">
+    <button class="modal-close" data-close type="button">&times;</button>
+    <div class="apm-media" id="apmMedia" style="display:none;"></div>
+    <div class="apm-body">
+      <span class="apm-date" id="apmDate"></span>
+      <h2 class="apm-title" id="apmTitle"></h2>
+      <p class="apm-text" id="apmText"></p>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   var ALL_POSTS = [];
@@ -2935,7 +3019,12 @@ iframe.goog-te-menu-frame { display: none !important; }
     empty: document.getElementById('activityEmpty'),
     error: document.getElementById('activityError'),
     retry: document.getElementById('activityRetry'),
-    viewMore: document.getElementById('activityViewMore')
+    viewMore: document.getElementById('activityViewMore'),
+    modal: document.getElementById('activityPostModal'),
+    apmMedia: document.getElementById('apmMedia'),
+    apmDate: document.getElementById('apmDate'),
+    apmTitle: document.getElementById('apmTitle'),
+    apmText: document.getElementById('apmText')
   };
 
   function escapeHTML(str) {
@@ -2959,29 +3048,70 @@ iframe.goog-te-menu-frame { display: none !important; }
     return dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
   }
 
-  function mediaHTML(post) {
+  // Compact card thumbnail. Photos use object-fit:contain in CSS so the
+  // whole image always shows (letterboxed on a neutral background,
+  // never cropped) — a small thumbnail here, the full-size image again
+  // in the "...more" modal. Videos show the YouTube thumbnail image
+  // with a play-icon overlay rather than loading a live iframe per
+  // card (lighter on mobile data + faster scrolling); the actual
+  // embedded player only loads once someone opens the full post.
+  function thumbHTML(post) {
     if (post.mediaType === 'Photo' && post.imageUrl) {
       return '<div class="activity-card-media"><img src="' + escapeHTML(post.imageUrl) + '" alt="' + escapeHTML(post.title) + '" loading="lazy"></div>';
     }
     if (post.mediaType === 'Video' && post.youtubeId) {
-      return '<div class="activity-card-media activity-card-media-video"><iframe src="https://www.youtube.com/embed/' + escapeHTML(post.youtubeId) + '" title="' + escapeHTML(post.title) + '" loading="lazy" allowfullscreen></iframe></div>';
+      var thumbUrl = 'https://img.youtube.com/vi/' + encodeURIComponent(post.youtubeId) + '/hqdefault.jpg';
+      return '<div class="activity-card-media activity-card-media-video"><img src="' + thumbUrl + '" alt="' + escapeHTML(post.title) + '" loading="lazy"></div>';
     }
     return '';
   }
 
   function cardHTML(post) {
-    var media = mediaHTML(post);
+    var thumb = thumbHTML(post);
     return (
-      '<div class="activity-card' + (media ? '' : ' activity-card-text-only') + '">' +
-        media +
+      '<div class="activity-card' + (thumb ? '' : ' activity-card-text-only') + '" data-id="' + escapeHTML(post.id) + '">' +
+        thumb +
         '<div class="activity-card-body">' +
           '<span class="activity-card-date">' + formatDisplayDate(post.date) + '</span>' +
           '<h3 class="activity-card-title">' + escapeHTML(post.title) + '</h3>' +
           (post.body ? '<p class="activity-card-text">' + escapeHTML(post.body) + '</p>' : '') +
+          '<span class="activity-card-more">Read more &rarr;</span>' +
         '</div>' +
       '</div>'
     );
   }
+
+  // Opens the full post in a modal, reusing the site's existing
+  // .modal-overlay/.modal-box open+close system (backdrop click,
+  // Escape, and the close button are already wired up generically for
+  // every modal present at page load — see the "Modals" script further
+  // down the page). The video iframe is only created here, on demand,
+  // not in the card itself.
+  function openPost(post) {
+    if (!els.modal) return;
+    els.apmDate.textContent = formatDisplayDate(post.date);
+    els.apmTitle.textContent = post.title || '';
+    els.apmText.textContent = post.body || '';
+
+    var mediaHtml = '';
+    if (post.mediaType === 'Photo' && post.imageUrl) {
+      mediaHtml = '<img src="' + escapeHTML(post.imageUrl) + '" alt="' + escapeHTML(post.title) + '">';
+    } else if (post.mediaType === 'Video' && post.youtubeId) {
+      mediaHtml = '<iframe src="https://www.youtube.com/embed/' + escapeHTML(post.youtubeId) + '" title="' + escapeHTML(post.title) + '" allowfullscreen></iframe>';
+    }
+    els.apmMedia.innerHTML = mediaHtml;
+    els.apmMedia.style.display = mediaHtml ? '' : 'none';
+
+    els.modal.classList.add('open');
+  }
+
+  els.grid.addEventListener('click', function (ev) {
+    var card = ev.target.closest('.activity-card');
+    if (!card) return;
+    var id = card.getAttribute('data-id');
+    var post = ALL_POSTS.filter(function (p) { return String(p.id) === String(id); })[0];
+    if (post) openPost(post);
+  });
 
   function render() {
     els.loading.style.display = 'none';
@@ -3208,15 +3338,8 @@ iframe.goog-te-menu-frame { display: none !important; }
           <span>&#128197; Sunday, 6 September 2026, 9:00 AM &ndash; 5:00 PM</span>
           <span>&#128205; Yashoda Super Speciality Hospital &amp; Cancer Institutes, Sanjay Nagar, Ghaziabad</span>
         </div>
-        <p style="margin-bottom:2px;"><strong>&#129468; Raktdaan Mahadaan &mdash; Let&rsquo;s Save a Life! &#10084;&#65039;</strong></p>
-        <p>Friends, most residents of Raj Nagar Extension go to Yashoda Hospital, Sanjay Nagar &mdash; just 10 minutes and 4 km away &mdash; for their treatment. Whenever they&rsquo;ve needed blood, and on our request, Yashoda Hospital has, on many occasions, arranged blood for them immediately.</p>
-        <p>To help the hospital maintain an adequate blood supply, RNEx Trust is organising a voluntary blood donation camp this coming Sunday. We request you to come in as large numbers as possible and donate blood for this humanitarian cause.</p>
-        <p>&#128220; Registration: <a href="https://forms.gle/DaFdNrJ5xsxSw65z8" target="_blank" rel="noopener">forms.gle/DaFdNrJ5xsxSw65z8</a></p>
-        <p>&#128073; Come donate blood yourself, and encourage your friends, family, and acquaintances to donate voluntarily too.</p>
-        <p style="margin-bottom:0;">&#128222; Contact / Convener:<br>
-        RNEx Trust &ndash; Raj Nagar Extension<br>
-        90120 95151 | 90150 95151</p>
-        <div class="event-actions" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
+        <p>RNEx Trust is organising a voluntary blood donation camp in partnership with Yashoda Super Speciality Hospital &amp; Cancer Institutes, to help the hospital maintain an adequate blood supply for patients from Raj Nagar Extension and nearby areas. One unit of blood can bring new hope to someone in need &mdash; join us as a donor or volunteer, or support the campaign.</p>
+        <div class="event-actions" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px;">
           <a href="https://forms.gle/DaFdNrJ5xsxSw65z8" target="_blank" rel="noopener" class="btn btn-primary" style="padding:9px 18px; font-size:0.88rem;">Register as Donor / Volunteer &rarr;</a>
           <a href="#donate" class="btn btn-ghost" style="padding:9px 18px; font-size:0.88rem;">Support the Campaign</a>
           <a href="tel:+919012095151" class="btn btn-ghost" style="padding:9px 18px; font-size:0.88rem;">&#128222; 90120 95151</a>
@@ -5213,11 +5336,11 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       <a href="#" data-modal="cancellationModal">Cancellation &amp; Refund</a>
       <a href="#" data-modal="shippingModal">Shipping &amp; Exchange</a>
       <a href="#" data-modal="disclaimerModal">Disclaimer</a>
+      <a href="#" data-modal="trustAdminModal">Staff Login</a>
     </div>
   </div>
   <div class="footer-bottom">
     <p>&copy; 2026 RNEx Trust (Regd.). All rights reserved. &middot; D-502, Brave Hearts Apartments (Regd.) &amp; Studio 613, AVS City Square, Raj Nagar Extension, Ghaziabad, UP 201017</p>
-    <p style="margin:8px 0 0;font-size:0.8rem;"><a href="#" data-modal="trustAdminModal" style="color:var(--ink-soft);opacity:0.9;">Staff Login</a></p>
   </div>
 </footer>
 
