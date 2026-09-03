@@ -2853,6 +2853,255 @@ iframe.goog-te-menu-frame { display: none !important; }
     </svg>
   </div>
 </section>
+<!-- ====== TRUST ACTIVITY / MEDIA (added 2026-09-03) ======
+     Public feed reads from action=trust_activity_feed (fetch-first +
+     JSONP fallback, same technique as #donation-wall above — see that
+     script's comments for the full reasoning). The "Staff Login" link
+     in the footer opens #trustAdminModal below, where Sanjeev/Deepanshu
+     log in (email + PIN, checked against the Trust_Admins sheet) and
+     publish/edit/delete posts. The PIN is hashed in the browser with
+     the Web Crypto API before it ever leaves the browser — only the
+     hash travels over the network.
+
+     Photo uploads and every write action (create/update/delete) go
+     through a hidden iframe form POST (#activityAdminForm below), not
+     fetch — the same technique already proven for Mitra photo uploads
+     elsewhere on this page, since Apps Script Web Apps don't reliably
+     support CORS on POST with a readable response. Photos are stored on
+     the Trust's own Google Drive and only ever displayed from here;
+     YouTube videos are never uploaded anywhere, only the link is stored
+     and embedded. See RNExTrust_System_FINAL.gs, "TRUST ACTIVITY /
+     MEDIA FEED" section, for the backend this talks to. -->
+<style>
+  .activity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 22px;
+    margin-top: 28px;
+  }
+  .activity-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+  }
+  .activity-card-media { position: relative; width: 100%; aspect-ratio: 16 / 10; background: var(--green-tint); overflow: hidden; }
+  .activity-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .activity-card-media-video iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .activity-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .activity-card-text-only .activity-card-body { background: var(--green-tint); }
+  .activity-card-date { font-size: 0.74rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; }
+  .activity-card-title { font-size: 1.05rem; font-weight: 700; color: var(--ink); margin: 0; line-height: 1.3; }
+  .activity-card-text { font-size: 0.9rem; color: var(--ink-soft); line-height: 1.5; margin: 0; white-space: pre-wrap; }
+  .activity-empty { text-align: center; color: var(--ink-soft); margin-top: 24px; }
+  .activity-actions { text-align: center; margin-top: 28px; }
+  @media (max-width: 640px) {
+    .activity-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<section class="section" id="trust-activity">
+  <div class="section-inner">
+    <p class="eyebrow center">On the Ground</p>
+    <h2 class="center">Trust Activity</h2>
+    <p class="section-lede center">Photos, videos and updates from our recent camps, drives and events.</p>
+    <p class="center" style="margin:-6px 0 20px;"><a href="#" data-modal="trustAdminModal" class="link-arrow">Staff Login — post an update &rarr;</a></p>
+
+    <p class="activity-empty" id="activityLoading">Loading recent activity&hellip;</p>
+    <div class="activity-grid" id="activityGrid" style="display:none;"></div>
+    <p class="activity-empty" id="activityEmpty" style="display:none;">No activity posted yet — check back soon.</p>
+    <p class="activity-empty" id="activityError" style="display:none;">
+      Couldn&rsquo;t load activity right now &mdash; this can happen on a slow connection.
+      <button type="button" class="link-arrow" id="activityRetry" style="background:none;border:none;cursor:pointer;padding:0;">Try again &rarr;</button>
+    </p>
+
+    <div class="activity-actions">
+      <button type="button" class="btn btn-ghost" id="activityViewMore" style="display:none;">View More</button>
+    </div>
+  </div>
+</section>
+<script>
+(function () {
+  var ALL_POSTS = [];
+  var visibleCount = 6;
+  var PAGE_SIZE = 6;
+
+  var els = {
+    grid: document.getElementById('activityGrid'),
+    loading: document.getElementById('activityLoading'),
+    empty: document.getElementById('activityEmpty'),
+    error: document.getElementById('activityError'),
+    retry: document.getElementById('activityRetry'),
+    viewMore: document.getElementById('activityViewMore')
+  };
+
+  function escapeHTML(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  function parseDate(str) {
+    if (!str) return null;
+    var parts = String(str).trim().split(' ');
+    var d = parts[0].split('-');
+    if (d.length !== 3) return null;
+    return new Date(parseInt(d[2], 10), parseInt(d[1], 10) - 1, parseInt(d[0], 10));
+  }
+
+  function formatDisplayDate(str) {
+    var dt = parseDate(str);
+    if (!dt) return escapeHTML(str);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+  }
+
+  function mediaHTML(post) {
+    if (post.mediaType === 'Photo' && post.imageUrl) {
+      return '<div class="activity-card-media"><img src="' + escapeHTML(post.imageUrl) + '" alt="' + escapeHTML(post.title) + '" loading="lazy"></div>';
+    }
+    if (post.mediaType === 'Video' && post.youtubeId) {
+      return '<div class="activity-card-media activity-card-media-video"><iframe src="https://www.youtube.com/embed/' + escapeHTML(post.youtubeId) + '" title="' + escapeHTML(post.title) + '" loading="lazy" allowfullscreen></iframe></div>';
+    }
+    return '';
+  }
+
+  function cardHTML(post) {
+    var media = mediaHTML(post);
+    return (
+      '<div class="activity-card' + (media ? '' : ' activity-card-text-only') + '">' +
+        media +
+        '<div class="activity-card-body">' +
+          '<span class="activity-card-date">' + formatDisplayDate(post.date) + '</span>' +
+          '<h3 class="activity-card-title">' + escapeHTML(post.title) + '</h3>' +
+          (post.body ? '<p class="activity-card-text">' + escapeHTML(post.body) + '</p>' : '') +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function render() {
+    els.loading.style.display = 'none';
+    els.error.style.display = 'none';
+    var slice = ALL_POSTS.slice(0, visibleCount);
+    if (!slice.length) {
+      els.grid.style.display = 'none';
+      els.grid.innerHTML = '';
+      els.empty.style.display = '';
+    } else {
+      els.empty.style.display = 'none';
+      els.grid.style.display = '';
+      els.grid.innerHTML = slice.map(cardHTML).join('');
+    }
+    els.viewMore.style.display = (visibleCount < ALL_POSTS.length) ? '' : 'none';
+  }
+
+  function showLoadFailure() {
+    els.loading.style.display = 'none';
+    els.grid.style.display = 'none';
+    els.empty.style.display = 'none';
+    els.viewMore.style.display = 'none';
+    els.error.style.display = '';
+  }
+
+  function showLoadingState() {
+    els.loading.style.display = '';
+    els.error.style.display = 'none';
+    els.grid.style.display = 'none';
+    els.empty.style.display = 'none';
+  }
+
+  els.viewMore.addEventListener('click', function () {
+    visibleCount += PAGE_SIZE;
+    render();
+  });
+
+  // Same fetch()-first / JSONP-fallback dual load as #donation-wall above.
+  var TIMEOUT_MS = 20000;
+  var MAX_ATTEMPTS = 3;
+
+  function onActivityData(data) {
+    ALL_POSTS = (data && data.posts) ? data.posts : [];
+    render();
+  }
+
+  function loadActivityJsonp(attempt) {
+    attempt = attempt || 1;
+    showLoadingState();
+
+    var settled = false;
+    var callbackName = 'activityFeedCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    var script = document.createElement('script');
+    var timeoutId = setTimeout(function () { finish(null); }, TIMEOUT_MS);
+
+    function finish(data) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+
+      if (!data) {
+        if (attempt < MAX_ATTEMPTS) {
+          loadActivityJsonp(attempt + 1);
+        } else {
+          showLoadFailure();
+        }
+        return;
+      }
+      onActivityData(data);
+    }
+
+    window[callbackName] = finish;
+    script.onerror = function () { finish(null); };
+    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
+    script.src = baseUrl + '?action=trust_activity_feed&callback=' + callbackName;
+    document.body.appendChild(script);
+  }
+
+  function loadActivity() {
+    showLoadingState();
+    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
+
+    if (!window.fetch) {
+      loadActivityJsonp(1);
+      return;
+    }
+
+    var controller = window.AbortController ? new AbortController() : null;
+    var timeoutId = controller && setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
+
+    fetch(baseUrl + '?action=trust_activity_feed', controller ? { signal: controller.signal } : {})
+      .then(function (res) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(onActivityData)
+      .catch(function () {
+        loadActivityJsonp(1);
+      });
+  }
+
+  if (els.retry) {
+    els.retry.addEventListener('click', loadActivity);
+  }
+
+  // Exposed so the admin panel can refresh this grid right after a
+  // publish/edit/delete, without a full page reload.
+  window.RNExReloadTrustActivity = loadActivity;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { loadActivity(); });
+  } else {
+    loadActivity();
+  }
+})();
+</script>
+
 
 <!-- ====== ABOUT ====== -->
 <section class="section" id="about">
@@ -2951,15 +3200,35 @@ iframe.goog-te-menu-frame { display: none !important; }
         </div>
       </div>
 
-      <!-- Real, confirmed activity -->
-      <div class="event-card" data-status="progress">
-        <span class="event-status status-progress">In Progress</span>
-        <h3>Blood Donation Camp</h3>
+      <!-- Real, confirmed activity — Raktdaan Mahadaan blood donation camp, 6 Sept 2026. Date/venue/description updated from the official flyer + campaign announcement (translated from Hindi). -->
+      <div class="event-card" data-status="upcoming" data-event-date="2026-09-06">
+        <span class="event-status status-upcoming">Upcoming</span>
+        <h3>Blood Donation Camp — Raktdaan Mahadaan</h3>
         <div class="event-meta">
-          <span>&#128197; Date to be confirmed</span>
-          <span>&#129309; With Ghaziabad Blood Centre</span>
+          <span>&#128197; Sunday, 6 September 2026, 9:00 AM &ndash; 5:00 PM</span>
+          <span>&#128205; Yashoda Super Speciality Hospital &amp; Cancer Institutes, Sanjay Nagar, Ghaziabad</span>
         </div>
-        <p>RNEx Trust is coordinating a blood donation camp in partnership with Ghaziabad Blood Centre, under our standard MOU framework for healthcare partnerships. We aim to run such camps regularly through the year.</p>
+        <p style="margin-bottom:2px;"><strong>&#129468; This Raksha Bandhan, take the pledge to donate blood &#129468;</strong></p>
+        <p style="font-style:italic;">&ldquo;With this thread I bind you, O protector &mdash; do not waver, do not waver.&rdquo;</p>
+        <p>Raksha Bandhan isn&rsquo;t only a festival celebrating the bond between brother and sister &mdash; it is also a vow to stand by one another through joy and sorrow, and to protect life itself. This Raksha Bandhan, let&rsquo;s be bound by the thread of blood donation. &#129468;</p>
+        <p>&#128591; Let&rsquo;s pledge that whenever a friend, neighbour, or anyone in need requires blood, we will step forward within our means and donate &mdash; becoming partners in protecting their life.</p>
+        <p style="margin-bottom:2px;"><strong>&#129468; Raktdaan Mahadaan Campaign</strong></p>
+        <p>Help us carry forward this campaign, running for the past five years:<br>
+        &#128073; Join as a Donor / Volunteer: <a href="https://forms.gle/7amRyX1fDQAF3ck57" target="_blank" rel="noopener">forms.gle/7amRyX1fDQAF3ck57</a><br>
+        &#10084;&#65039; Support financially to strengthen our Blood Donor Network: <a href="#donate">rnextrust.com/#donate</a></p>
+        <p>Let&rsquo;s tie not just a rakhi this Raksha Bandhan, but a thread of humanity that can save a life in a moment of need. &#128591;&#129468;</p>
+        <p>Wishing you a very happy and blessed Raksha Bandhan! &#127800;</p>
+        <p style="margin-bottom:0;">Warm regards,<br>
+        Deepanshu Mittal<br>
+        Convener &mdash; Raktdaan Mahadaan Campaign<br>
+        Founder &mdash; RNEx Trust<br>
+        90120 95151 / 90150 95151</p>
+        <div class="event-actions" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;">
+          <a href="https://forms.gle/7amRyX1fDQAF3ck57" target="_blank" rel="noopener" class="btn btn-primary" style="padding:9px 18px; font-size:0.88rem;">Register as Donor / Volunteer &rarr;</a>
+          <a href="#donate" class="btn btn-ghost" style="padding:9px 18px; font-size:0.88rem;">Support the Campaign</a>
+          <a href="tel:+919012095151" class="btn btn-ghost" style="padding:9px 18px; font-size:0.88rem;">&#128222; 90120 95151</a>
+          <a href="tel:+919015095151" class="btn btn-ghost" style="padding:9px 18px; font-size:0.88rem;">&#128222; 90150 95151</a>
+        </div>
       </div>
 
     </div>
@@ -4303,253 +4572,6 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
 })();
 </script>
 
-<!-- ====== TRUST ACTIVITY / MEDIA (added 2026-09-03) ======
-     Public feed reads from action=trust_activity_feed (fetch-first +
-     JSONP fallback, same technique as #donation-wall above — see that
-     script's comments for the full reasoning). The "Staff Login" link
-     in the footer opens #trustAdminModal below, where Sanjeev/Deepanshu
-     log in (email + PIN, checked against the Trust_Admins sheet) and
-     publish/edit/delete posts. The PIN is hashed in the browser with
-     the Web Crypto API before it ever leaves the browser — only the
-     hash travels over the network.
-
-     Photo uploads and every write action (create/update/delete) go
-     through a hidden iframe form POST (#activityAdminForm below), not
-     fetch — the same technique already proven for Mitra photo uploads
-     elsewhere on this page, since Apps Script Web Apps don't reliably
-     support CORS on POST with a readable response. Photos are stored on
-     the Trust's own Google Drive and only ever displayed from here;
-     YouTube videos are never uploaded anywhere, only the link is stored
-     and embedded. See RNExTrust_System_FINAL.gs, "TRUST ACTIVITY /
-     MEDIA FEED" section, for the backend this talks to. -->
-<style>
-  .activity-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 22px;
-    margin-top: 28px;
-  }
-  .activity-card {
-    background: var(--paper-card);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    box-shadow: var(--shadow-card);
-    display: flex;
-    flex-direction: column;
-  }
-  .activity-card-media { position: relative; width: 100%; aspect-ratio: 16 / 10; background: var(--green-tint); overflow: hidden; }
-  .activity-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .activity-card-media-video iframe { width: 100%; height: 100%; border: 0; display: block; }
-  .activity-card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-  .activity-card-text-only .activity-card-body { background: var(--green-tint); }
-  .activity-card-date { font-size: 0.74rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; }
-  .activity-card-title { font-size: 1.05rem; font-weight: 700; color: var(--ink); margin: 0; line-height: 1.3; }
-  .activity-card-text { font-size: 0.9rem; color: var(--ink-soft); line-height: 1.5; margin: 0; white-space: pre-wrap; }
-  .activity-empty { text-align: center; color: var(--ink-soft); margin-top: 24px; }
-  .activity-actions { text-align: center; margin-top: 28px; }
-  @media (max-width: 640px) {
-    .activity-grid { grid-template-columns: 1fr; }
-  }
-</style>
-
-<section class="section" id="trust-activity">
-  <div class="section-inner">
-    <p class="eyebrow center">On the Ground</p>
-    <h2 class="center">Trust Activity</h2>
-    <p class="section-lede center">Photos, videos and updates from our recent camps, drives and events.</p>
-
-    <p class="activity-empty" id="activityLoading">Loading recent activity&hellip;</p>
-    <div class="activity-grid" id="activityGrid" style="display:none;"></div>
-    <p class="activity-empty" id="activityEmpty" style="display:none;">No activity posted yet — check back soon.</p>
-    <p class="activity-empty" id="activityError" style="display:none;">
-      Couldn&rsquo;t load activity right now &mdash; this can happen on a slow connection.
-      <button type="button" class="link-arrow" id="activityRetry" style="background:none;border:none;cursor:pointer;padding:0;">Try again &rarr;</button>
-    </p>
-
-    <div class="activity-actions">
-      <button type="button" class="btn btn-ghost" id="activityViewMore" style="display:none;">View More</button>
-    </div>
-  </div>
-</section>
-<script>
-(function () {
-  var ALL_POSTS = [];
-  var visibleCount = 6;
-  var PAGE_SIZE = 6;
-
-  var els = {
-    grid: document.getElementById('activityGrid'),
-    loading: document.getElementById('activityLoading'),
-    empty: document.getElementById('activityEmpty'),
-    error: document.getElementById('activityError'),
-    retry: document.getElementById('activityRetry'),
-    viewMore: document.getElementById('activityViewMore')
-  };
-
-  function escapeHTML(str) {
-    return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
-      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
-    });
-  }
-
-  function parseDate(str) {
-    if (!str) return null;
-    var parts = String(str).trim().split(' ');
-    var d = parts[0].split('-');
-    if (d.length !== 3) return null;
-    return new Date(parseInt(d[2], 10), parseInt(d[1], 10) - 1, parseInt(d[0], 10));
-  }
-
-  function formatDisplayDate(str) {
-    var dt = parseDate(str);
-    if (!dt) return escapeHTML(str);
-    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
-  }
-
-  function mediaHTML(post) {
-    if (post.mediaType === 'Photo' && post.imageUrl) {
-      return '<div class="activity-card-media"><img src="' + escapeHTML(post.imageUrl) + '" alt="' + escapeHTML(post.title) + '" loading="lazy"></div>';
-    }
-    if (post.mediaType === 'Video' && post.youtubeId) {
-      return '<div class="activity-card-media activity-card-media-video"><iframe src="https://www.youtube.com/embed/' + escapeHTML(post.youtubeId) + '" title="' + escapeHTML(post.title) + '" loading="lazy" allowfullscreen></iframe></div>';
-    }
-    return '';
-  }
-
-  function cardHTML(post) {
-    var media = mediaHTML(post);
-    return (
-      '<div class="activity-card' + (media ? '' : ' activity-card-text-only') + '">' +
-        media +
-        '<div class="activity-card-body">' +
-          '<span class="activity-card-date">' + formatDisplayDate(post.date) + '</span>' +
-          '<h3 class="activity-card-title">' + escapeHTML(post.title) + '</h3>' +
-          (post.body ? '<p class="activity-card-text">' + escapeHTML(post.body) + '</p>' : '') +
-        '</div>' +
-      '</div>'
-    );
-  }
-
-  function render() {
-    els.loading.style.display = 'none';
-    els.error.style.display = 'none';
-    var slice = ALL_POSTS.slice(0, visibleCount);
-    if (!slice.length) {
-      els.grid.style.display = 'none';
-      els.grid.innerHTML = '';
-      els.empty.style.display = '';
-    } else {
-      els.empty.style.display = 'none';
-      els.grid.style.display = '';
-      els.grid.innerHTML = slice.map(cardHTML).join('');
-    }
-    els.viewMore.style.display = (visibleCount < ALL_POSTS.length) ? '' : 'none';
-  }
-
-  function showLoadFailure() {
-    els.loading.style.display = 'none';
-    els.grid.style.display = 'none';
-    els.empty.style.display = 'none';
-    els.viewMore.style.display = 'none';
-    els.error.style.display = '';
-  }
-
-  function showLoadingState() {
-    els.loading.style.display = '';
-    els.error.style.display = 'none';
-    els.grid.style.display = 'none';
-    els.empty.style.display = 'none';
-  }
-
-  els.viewMore.addEventListener('click', function () {
-    visibleCount += PAGE_SIZE;
-    render();
-  });
-
-  // Same fetch()-first / JSONP-fallback dual load as #donation-wall above.
-  var TIMEOUT_MS = 20000;
-  var MAX_ATTEMPTS = 3;
-
-  function onActivityData(data) {
-    ALL_POSTS = (data && data.posts) ? data.posts : [];
-    render();
-  }
-
-  function loadActivityJsonp(attempt) {
-    attempt = attempt || 1;
-    showLoadingState();
-
-    var settled = false;
-    var callbackName = 'activityFeedCb_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
-    var script = document.createElement('script');
-    var timeoutId = setTimeout(function () { finish(null); }, TIMEOUT_MS);
-
-    function finish(data) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeoutId);
-      delete window[callbackName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-
-      if (!data) {
-        if (attempt < MAX_ATTEMPTS) {
-          loadActivityJsonp(attempt + 1);
-        } else {
-          showLoadFailure();
-        }
-        return;
-      }
-      onActivityData(data);
-    }
-
-    window[callbackName] = finish;
-    script.onerror = function () { finish(null); };
-    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
-    script.src = baseUrl + '?action=trust_activity_feed&callback=' + callbackName;
-    document.body.appendChild(script);
-  }
-
-  function loadActivity() {
-    showLoadingState();
-    var baseUrl = window.RNEX_APPS_SCRIPT_URL || window.GALLERY_APPS_SCRIPT_URL || window.APPS_SCRIPT_URL;
-
-    if (!window.fetch) {
-      loadActivityJsonp(1);
-      return;
-    }
-
-    var controller = window.AbortController ? new AbortController() : null;
-    var timeoutId = controller && setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
-
-    fetch(baseUrl + '?action=trust_activity_feed', controller ? { signal: controller.signal } : {})
-      .then(function (res) {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      })
-      .then(onActivityData)
-      .catch(function () {
-        loadActivityJsonp(1);
-      });
-  }
-
-  if (els.retry) {
-    els.retry.addEventListener('click', loadActivity);
-  }
-
-  // Exposed so the admin panel can refresh this grid right after a
-  // publish/edit/delete, without a full page reload.
-  window.RNExReloadTrustActivity = loadActivity;
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { loadActivity(); });
-  } else {
-    loadActivity();
-  }
-})();
-</script>
 
 <!-- ====== TRUST ACTIVITY ADMIN PANEL ======
      Reached only via the small "Staff Login" link in the footer — not
@@ -5202,7 +5224,7 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   </div>
   <div class="footer-bottom">
     <p>&copy; 2026 RNEx Trust (Regd.). All rights reserved. &middot; D-502, Brave Hearts Apartments (Regd.) &amp; Studio 613, AVS City Square, Raj Nagar Extension, Ghaziabad, UP 201017</p>
-    <p style="margin:8px 0 0;font-size:0.75rem;"><a href="#" data-modal="trustAdminModal" style="color:var(--ink-soft);opacity:0.7;">Staff Login</a></p>
+    <p style="margin:8px 0 0;font-size:0.8rem;"><a href="#" data-modal="trustAdminModal" style="color:var(--ink-soft);opacity:0.9;">Staff Login</a></p>
   </div>
 </footer>
 
