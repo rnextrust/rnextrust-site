@@ -3728,7 +3728,13 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     var timeoutId = setTimeout(function () { finish(FALLBACK_MEMBERS); }, 4000);
 
     window[callbackName] = function (data) {
-      finish(data && data.members && data.members.length ? data.members : FALLBACK_MEMBERS);
+      // 2026-09-04: FALLBACK_MEMBERS (Ayush Mittal, Deshmani Sharma) are
+      // real founding members, not just filler — they used to disappear
+      // the moment any live Mitra data came back, which looked like they
+      // were "removed" once Puneet Goyal's photo went live. Now always
+      // shown together with whatever real members the sheet returns.
+      var live = data && data.members && data.members.length ? data.members : [];
+      finish(FALLBACK_MEMBERS.concat(live));
     };
 
     script.src = GALLERY_APPS_SCRIPT_URL + '?action=mitra_gallery&callback=' + callbackName;
