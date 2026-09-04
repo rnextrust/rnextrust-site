@@ -3534,6 +3534,12 @@ window.RNExCropImageToBase64 = function (file, maxDim, callback) {
 window.RNExMitraPrepay = { fileId: '', uploading: false };
 
 window.addEventListener('message', function (event) {
+  // Gated on .uploading (2026-09-04) so this never reacts to an
+  // unrelated postMessage that also happens to carry a status field —
+  // e.g. the post-payment #photo-upload page's own upload response, or
+  // the Trust Activity admin panel's. Same cross-talk-prevention
+  // pattern as those listeners use (taPendingAction / puUploadPending).
+  if (!window.RNExMitraPrepay.uploading) return;
   var data = event.data;
   if (typeof data !== 'string') return;
   var parsed;
@@ -3901,8 +3907,14 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   }
 
   function showError(msg) {
+    // 2026-09-04: was setting display to '' to "show" the message, but
+    // .pu-error's own CSS rule defaults to display:none — clearing the
+    // inline style just falls back to that, so this error text has
+    // never actually been visible to anyone. Real, previously-unnoticed
+    // bug, same pattern found and fixed in taSetMsg() below. Explicit
+    // 'block' is needed to actually override the class.
     els.pu_error.textContent = msg;
-    els.pu_error.style.display = msg ? '' : 'none';
+    els.pu_error.style.display = msg ? 'block' : 'none';
   }
 
   function init() {
@@ -3946,15 +3958,48 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     });
   }
 
-  var ignoreFirstFrameLoad = true;
-  if (els.puFrame) {
-    els.puFrame.addEventListener('load', function () {
-      if (ignoreFirstFrameLoad) { ignoreFirstFrameLoad = false; return; }
+  // 2026-09-04: this used to treat ANY reload of the hidden iframe as
+  // "success" — the #photo-upload page can't read a cross-origin
+  // iframe's response body, so the old code just assumed the form
+  // worked the moment the iframe navigated at all. That meant a
+  // member could see "Thank you!" even when the upload genuinely
+  // failed on the backend (wrong/stale membership ID, a Drive error,
+  // etc.) — exactly what happened for Puneet Goyal (RNExT-2026-0003):
+  // he saw a success message, but nothing was written to the Sheet.
+  // handleUploadMitraProfile() on the backend now responds the same
+  // way the pre-payment photo upload and Trust Activity admin actions
+  // already do — a tiny HTML page that does
+  // parent.postMessage(JSON.stringify({status, message}), '*') — so
+  // this listens for that instead of guessing from the iframe. Gated
+  // on puUploadPending so it never reacts to an unrelated postMessage
+  // (e.g. the Trust Activity admin panel's own responses elsewhere on
+  // this page), same pattern as that panel's own taPendingAction gate.
+  var puUploadPending = false;
+  var puUploadTimeoutId = null;
+  var PU_UPLOAD_TIMEOUT_MS = 25000;
+
+  function puFinishUpload(ok, message) {
+    if (!puUploadPending) return;
+    puUploadPending = false;
+    if (puUploadTimeoutId) { clearTimeout(puUploadTimeoutId); puUploadTimeoutId = null; }
+    els.pu_submit_btn.disabled = false;
+    els.pu_submit_btn.textContent = 'Upload';
+    if (ok) {
       showState('puSuccess');
-      els.pu_submit_btn.disabled = false;
-      els.pu_submit_btn.textContent = 'Upload';
-    });
+    } else {
+      showError(message || 'Something went wrong — please try again, or WhatsApp us at +91 90120 95151.');
+    }
   }
+
+  window.addEventListener('message', function (event) {
+    if (!puUploadPending) return;
+    var data = event.data;
+    if (typeof data !== 'string') return;
+    var parsed;
+    try { parsed = JSON.parse(data); } catch (err) { return; }
+    if (!parsed || (parsed.status !== 'ok' && parsed.status !== 'error')) return;
+    puFinishUpload(parsed.status === 'ok', parsed.message);
+  });
 
   if (els.puForm) {
     els.puForm.setAttribute('action', GALLERY_APPS_SCRIPT_URL);
@@ -3977,9 +4022,17 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       }
       // Validation passed — let the form submit natively to the hidden
       // iframe (no preventDefault). No CORS involved since this is a
-      // real form submission, not fetch/XHR.
+      // real form submission, not fetch/XHR. Success/failure is now
+      // decided by the postMessage listener above, not by this submit
+      // handler — this just arms it and shows a timeout error if the
+      // response never arrives (e.g. a very slow connection).
       els.pu_submit_btn.disabled = true;
       els.pu_submit_btn.textContent = 'Uploading…';
+      puUploadPending = true;
+      if (puUploadTimeoutId) clearTimeout(puUploadTimeoutId);
+      puUploadTimeoutId = setTimeout(function () {
+        puFinishUpload(false, 'This is taking longer than expected. Please check your connection and try again, or WhatsApp your photo to +91 90120 95151.');
+      }, PU_UPLOAD_TIMEOUT_MS);
     });
   }
 
@@ -4694,38 +4747,113 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
      linked anywhere prominent, matching Sanjeev's request that posting
      be an internal-only workflow. -->
 <style>
-  #trustAdminModal .modal-box { max-width: 640px; text-align: left; }
-  .ta-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-  .ta-field label { font-size: 0.82rem; font-weight: 600; color: var(--ink); }
-  .ta-hint { font-size: 0.76rem; color: var(--ink-soft); margin: 2px 0 0; font-weight: 400; }
-  .ta-error { display: none; color: #B3261E; font-size: 0.85rem; margin: 8px 0; }
-  .ta-success { display: none; color: var(--green-deep); font-size: 0.85rem; margin: 8px 0; }
-  .ta-media-toggle { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  .ta-media-toggle button {
-    flex: 1; min-width: 100px; padding: 8px 10px; border-radius: var(--radius-sm);
-    border: 1px solid var(--border-soft); background: var(--paper); color: var(--ink-soft);
-    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  #trustAdminModal .modal-box { max-width: 640px; text-align: left; padding: 0; overflow: hidden; }
+  #trustAdminModal .modal-close { background: rgba(26,26,26,0.55); }
+  #trustAdminModal .modal-close:hover,
+  #trustAdminModal .modal-close:active { background: rgba(26,26,26,0.75); }
+
+  /* Elegant pass (2026-09-04): a proper header band, custom-styled
+     inputs/select with a visible focus ring, a rounded pill media
+     toggle, and consistent card-style spacing — replacing the bare
+     browser-default form controls. */
+  .ta-header {
+    background: linear-gradient(135deg, var(--green-deep), #14532d);
+    color: #fff;
+    padding: 28px 28px 22px;
   }
-  .ta-media-toggle button.active { background: var(--green-deep); color: #fff; border-color: var(--green-deep); }
-  .ta-photo-preview { display: none; width: 100%; max-height: 220px; object-fit: cover; border-radius: var(--radius-sm); margin: 6px 0; }
-  .ta-welcome { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }
-  .ta-post-list { margin-top: 22px; border-top: 1px solid var(--border-soft); padding-top: 16px; max-height: 320px; overflow-y: auto; }
-  .ta-post-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
-  .ta-post-item:last-child { border-bottom: none; }
+  .ta-header-icon {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,0.16);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; margin-bottom: 10px;
+  }
+  .ta-header h2 { margin: 0 0 4px; color: #fff; font-size: 1.4rem; }
+  .ta-header p { margin: 0; color: rgba(255,255,255,0.82); font-size: 0.86rem; }
+  .ta-body { padding: 26px 28px 30px; }
+
+  .ta-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .ta-field label { font-size: 0.8rem; font-weight: 700; color: var(--ink); letter-spacing: 0.2px; }
+  .ta-field input[type="text"],
+  .ta-field input[type="password"],
+  .ta-field input[type="url"],
+  .ta-field input[type="file"],
+  .ta-field select,
+  .ta-field textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 0.95rem;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1.5px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .ta-field textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+  .ta-field select {
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%234A4F4C'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.19l3.71-3.96a.75.75 0 111.1 1.02l-4.24 4.53a.75.75 0 01-1.1 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 18px;
+    padding-right: 38px;
+  }
+  .ta-field input[type="file"] { padding: 9px 12px; background: var(--paper-card); cursor: pointer; }
+  .ta-field input:focus,
+  .ta-field select:focus,
+  .ta-field textarea:focus {
+    outline: none;
+    border-color: var(--green-deep);
+    background: var(--paper-card);
+    box-shadow: 0 0 0 3px rgba(27,115,64,0.14);
+  }
+  .ta-hint { font-size: 0.76rem; color: var(--ink-soft); margin: 2px 0 0; font-weight: 400; }
+  .ta-error { display: none; color: #B3261E; font-size: 0.85rem; margin: 4px 0 14px; padding: 10px 12px; background: rgba(179,38,30,0.08); border-radius: 8px; }
+  .ta-success { display: none; color: var(--green-deep); font-size: 0.85rem; margin: 4px 0 14px; padding: 10px 12px; background: var(--green-tint); border-radius: 8px; }
+  #trustAdminModal .btn-primary { padding: 13px 20px; font-size: 0.95rem; border-radius: 10px; box-shadow: 0 6px 16px rgba(27,115,64,0.22); }
+
+  .ta-media-toggle { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; background: var(--paper); border-radius: 12px; padding: 5px; }
+  .ta-media-toggle button {
+    flex: 1; min-width: 100px; padding: 9px 10px; border-radius: 9px;
+    border: none; background: transparent; color: var(--ink-soft);
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ta-media-toggle button.active { background: #fff; color: var(--green-deep); box-shadow: 0 2px 8px rgba(26,26,26,0.1); }
+  .ta-photo-preview { display: none; width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; margin: 8px 0; border: 1px solid var(--border-soft); }
+  .ta-welcome {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    margin: -26px -28px 20px; padding: 14px 28px;
+    background: var(--green-tint); border-bottom: 1px solid var(--border-soft);
+  }
+  .ta-welcome span { font-size: 0.88rem; font-weight: 600; color: var(--green-deep); }
+  .ta-welcome .btn-ghost { padding: 7px 14px; font-size: 0.78rem; }
+  .ta-post-list-wrap { margin-top: 26px; border-top: 1px solid var(--border-soft); padding-top: 18px; }
+  .ta-post-list { max-height: 320px; overflow-y: auto; }
+  .ta-post-list-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-soft); margin: 0 0 10px; }
+  .ta-post-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 10px; transition: background 0.15s ease; }
+  .ta-post-item:hover { background: var(--paper); }
+  .ta-post-item + .ta-post-item { margin-top: 2px; }
   .ta-post-item-title { font-weight: 600; font-size: 0.88rem; color: var(--ink); }
-  .ta-post-item-meta { font-size: 0.74rem; color: var(--ink-soft); }
+  .ta-post-item-meta { font-size: 0.74rem; color: var(--ink-soft); margin-top: 2px; }
   .ta-post-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .ta-post-item-actions button { font-size: 0.74rem; padding: 4px 9px; border-radius: 100px; border: 1px solid var(--border-soft); background: var(--paper); cursor: pointer; }
-  .ta-post-item-actions button.ta-delete-btn { color: #B3261E; border-color: #B3261E; }
-  .ta-edit-banner { background: var(--green-tint); color: var(--green-deep); font-size: 0.82rem; padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 12px; display: none; }
+  .ta-post-item-actions button { font-size: 0.74rem; padding: 5px 11px; border-radius: 100px; border: 1px solid var(--border-soft); background: #fff; cursor: pointer; font-weight: 600; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
+  .ta-post-item-actions button:hover { border-color: var(--green-deep); color: var(--green-deep); }
+  .ta-post-item-actions button.ta-delete-btn { color: #B3261E; border-color: rgba(179,38,30,0.35); }
+  .ta-post-item-actions button.ta-delete-btn:hover { background: #B3261E; color: #fff; border-color: #B3261E; }
+  .ta-edit-banner { background: var(--green-tint); color: var(--green-deep); font-size: 0.82rem; padding: 10px 12px; border-radius: 10px; margin-bottom: 14px; display: none; font-weight: 600; }
 </style>
 <div class="modal-overlay" id="trustAdminModal">
   <div class="modal-box">
     <button class="modal-close" data-close type="button">&times;</button>
-    <h2 style="margin-top:0;">Trust Activity — Staff Login</h2>
+    <div class="ta-header">
+      <div class="ta-header-icon">🔒</div>
+      <h2>Staff Login</h2>
+      <p>Post photos, videos and updates to the Trust Activity section.</p>
+    </div>
 
+    <div class="ta-body">
     <div id="taLoginView">
-      <p class="section-lede" style="margin-top:0;text-align:left;">Post photos, videos and updates to the Trust Activity section.</p>
       <div class="ta-field">
         <label for="ta_email">Email</label>
         <select id="ta_email">
@@ -4793,9 +4921,13 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
       <p class="ta-success" id="taFormSuccess"></p>
       <button type="button" class="btn btn-primary btn-block" id="taSubmitBtn">Publish</button>
 
-      <div class="ta-post-list" id="taPostList">
-        <p class="ta-hint">Loading your posts&hellip;</p>
+      <div class="ta-post-list-wrap">
+        <p class="ta-post-list-title">Your posts</p>
+        <div class="ta-post-list" id="taPostList">
+          <p class="ta-hint">Loading your posts&hellip;</p>
+        </div>
       </div>
+    </div>
     </div>
   </div>
 </div>
@@ -4860,9 +4992,16 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
   }
 
   function taSetMsg(el, msg) {
+    // 2026-09-04: same bug as showError() in the #photo-upload script —
+    // .ta-error/.ta-success both default to display:none in CSS, so
+    // setting display to '' (removing the inline override) never
+    // actually showed these messages. This is very likely why "Post
+    // published." never appeared after a successful publish earlier —
+    // the post really did save, but the on-screen confirmation was
+    // silently invisible the whole time.
     if (!el) return;
     el.textContent = msg || '';
-    el.style.display = msg ? '' : 'none';
+    el.style.display = msg ? 'block' : 'none';
   }
 
   // Hashes a PIN the same way RNExTrust_System_FINAL.gs's hashPin_() does
