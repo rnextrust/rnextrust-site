@@ -3204,7 +3204,17 @@ iframe.goog-te-menu-frame { display: none !important; }
     var controller = window.AbortController ? new AbortController() : null;
     var timeoutId = controller && setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
 
-    fetch(baseUrl + '?action=trust_activity_feed', controller ? { signal: controller.signal } : {})
+    // 2026-09-08: cache-bust with a unique timestamp param + cache:'no-store'.
+    // Without this, a static URL like this can get served a stale cached
+    // response — either by the browser's own HTTP cache, or by Google's
+    // Apps Script edge caching for anonymous "Anyone" GET requests — even
+    // though the script itself would compute fresh data every time. This
+    // fetch() would then "succeed" with old data instead of throwing, so
+    // the JSONP fallback (which is naturally cache-proof, since its
+    // callback= param is already unique per load) never gets a chance to
+    // run and correct it. Found via a real case: a brand-new donation was
+    // missing from the live Recent Donations table for days.
+    fetch(baseUrl + '?action=trust_activity_feed&_ts=' + Date.now(), Object.assign({ cache: 'no-store' }, controller ? { signal: controller.signal } : {}))
       .then(function (res) {
         if (timeoutId) clearTimeout(timeoutId);
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -4719,7 +4729,14 @@ window.RNExWaitForMitraPrepayUpload = function (timeoutMs) {
     var controller = window.AbortController ? new AbortController() : null;
     var timeoutId = controller && setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
 
-    fetch(baseUrl + '?action=donation_wall', controller ? { signal: controller.signal } : {})
+    // 2026-09-08: cache-bust — see the matching comment on the Trust
+    // Activity feed's fetch() call for the full explanation. Root cause
+    // of a real bug: a fresh Mortuary Van donation from Adv Raunak Singh
+    // (06-09-2026) never appeared in the live Recent Donations table —
+    // the backend (handleDonationWall) was verified correct and DID
+    // return it, so a stale cached fetch() response (this exact static
+    // URL, no unique parameter) was the only explanation left standing.
+    fetch(baseUrl + '?action=donation_wall&_ts=' + Date.now(), Object.assign({ cache: 'no-store' }, controller ? { signal: controller.signal } : {}))
       .then(function (res) {
         if (timeoutId) clearTimeout(timeoutId);
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -5863,7 +5880,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function fetchProgress() {
-    fetch(url)
+    // 2026-09-08: cache-bust with a unique timestamp param + cache:'no-store'.
+    // Google's gviz/tq feed can serve a stale cached snapshot for a static
+    // URL like this one — confirmed directly while diagnosing a related
+    // bug (a brand-new donation missing from the Recent Donations table,
+    // caused by the same kind of stale-fetch issue on a different
+    // endpoint). Appending a changing param each call avoids that.
+    fetch(url + '&_ts=' + Date.now(), { cache: 'no-store' })
       .then(r => r.text())
       .then(text => {
         // Google Sheets wraps JSON in /*O_o*/ google.visualization.Query.setResponse(...)
